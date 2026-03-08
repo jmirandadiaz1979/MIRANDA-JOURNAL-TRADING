@@ -1696,10 +1696,15 @@ function actualizarDireccion(timestamp, direction) {
     }
 }
 
-function actualizarSetup(timestamp, setup) {
+// ============================================
+// FUNCIONES DE ACTUALIZACIÓN DE DESPLEGABLES (CORREGIDAS)
+// ============================================
+async function actualizarSetup(timestamp, setup) {
     const trade = trades.find(t => t.timestamp === timestamp);
     if (trade) {
         trade.setup = setup;
+        
+        // Actualizar psychologyData
         const psychoIndex = psychologyData.findIndex(p => p.timestamp === timestamp);
         if (psychoIndex >= 0) {
             psychologyData[psychoIndex].setup = setup;
@@ -1711,15 +1716,40 @@ function actualizarSetup(timestamp, setup) {
                 ruleBroken: trade.ruleBroken || ''
             });
         }
-        actualizarTrade(trade.id, { setup: setup });
+        
+        // Guardar en Firebase
+        await actualizarTrade(trade.id, { setup: setup });
+        
+        // Guardar en localStorage como respaldo
         saveToStorage();
+        
+        // Actualizar los paneles de Setup y Psicología
+        updateSetupTable();
+        updatePsychologyTables();
+        
+        // Pequeña notificación visual
+        const msg = document.createElement('div');
+        msg.style.position = 'fixed';
+        msg.style.bottom = '20px';
+        msg.style.left = '20px';
+        msg.style.background = '#00ff9d';
+        msg.style.color = '#0a0c0f';
+        msg.style.padding = '8px 15px';
+        msg.style.borderRadius = '5px';
+        msg.style.zIndex = '9999';
+        msg.style.fontSize = '12px';
+        msg.innerHTML = '✅ Setup actualizado';
+        document.body.appendChild(msg);
+        setTimeout(() => msg.remove(), 1500);
     }
 }
 
-function actualizarEmocion(timestamp, emo) {
+async function actualizarEmocion(timestamp, emo) {
     const trade = trades.find(t => t.timestamp === timestamp);
     if (trade) {
         trade.emoState = emo;
+        
+        // Actualizar psychologyData
         const psychoIndex = psychologyData.findIndex(p => p.timestamp === timestamp);
         if (psychoIndex >= 0) {
             psychologyData[psychoIndex].emoState = emo;
@@ -1731,15 +1761,40 @@ function actualizarEmocion(timestamp, emo) {
                 ruleBroken: trade.ruleBroken || ''
             });
         }
-        actualizarTrade(trade.id, { emoState: emo });
+        
+        // Guardar en Firebase
+        await actualizarTrade(trade.id, { emoState: emo });
+        
+        // Guardar en localStorage como respaldo
         saveToStorage();
+        
+        // Actualizar los paneles de Setup y Psicología
+        updateSetupTable();
+        updatePsychologyTables();
+        
+        // Pequeña notificación visual
+        const msg = document.createElement('div');
+        msg.style.position = 'fixed';
+        msg.style.bottom = '20px';
+        msg.style.left = '20px';
+        msg.style.background = '#00ff9d';
+        msg.style.color = '#0a0c0f';
+        msg.style.padding = '8px 15px';
+        msg.style.borderRadius = '5px';
+        msg.style.zIndex = '9999';
+        msg.style.fontSize = '12px';
+        msg.innerHTML = '✅ Emoción actualizada';
+        document.body.appendChild(msg);
+        setTimeout(() => msg.remove(), 1500);
     }
 }
 
-function actualizarRegla(timestamp, rule) {
+async function actualizarRegla(timestamp, rule) {
     const trade = trades.find(t => t.timestamp === timestamp);
     if (trade) {
         trade.ruleBroken = rule;
+        
+        // Actualizar psychologyData
         const psychoIndex = psychologyData.findIndex(p => p.timestamp === timestamp);
         if (psychoIndex >= 0) {
             psychologyData[psychoIndex].ruleBroken = rule;
@@ -1751,8 +1806,31 @@ function actualizarRegla(timestamp, rule) {
                 ruleBroken: rule
             });
         }
-        actualizarTrade(trade.id, { ruleBroken: rule });
+        
+        // Guardar en Firebase
+        await actualizarTrade(trade.id, { ruleBroken: rule });
+        
+        // Guardar en localStorage como respaldo
         saveToStorage();
+        
+        // Actualizar los paneles de Setup y Psicología
+        updateSetupTable();
+        updatePsychologyTables();
+        
+        // Pequeña notificación visual
+        const msg = document.createElement('div');
+        msg.style.position = 'fixed';
+        msg.style.bottom = '20px';
+        msg.style.left = '20px';
+        msg.style.background = '#00ff9d';
+        msg.style.color = '#0a0c0f';
+        msg.style.padding = '8px 15px';
+        msg.style.borderRadius = '5px';
+        msg.style.zIndex = '9999';
+        msg.style.fontSize = '12px';
+        msg.innerHTML = '✅ Regla actualizada';
+        document.body.appendChild(msg);
+        setTimeout(() => msg.remove(), 1500);
     }
 }
 
