@@ -2484,9 +2484,24 @@ function exportarPDF() {
 }
 
 async function clearAllData() {
-    if (confirm('¿Seguro que quieres BORRAR TODOS los trades?')) {
-        // Esto requeriría borrar todos los documentos uno a uno
-        alert('Por seguridad, usa la consola de Firebase para borrar datos');
+    if (confirm('¿Seguro que quieres BORRAR TODOS los trades? Esta acción no se puede deshacer.')) {
+        try {
+            // Obtener todos los documentos de Firebase
+            const snapshot = await db.collection('trades').get();
+            const batch = db.batch();
+            
+            snapshot.docs.forEach(doc => {
+                batch.delete(doc.ref);
+            });
+            
+            await batch.commit();
+            console.log('✅ Todos los trades eliminados de Firebase');
+            await cargarTradesDesdeFirebase(); // Recargar la lista vacía
+            alert('✅ Todos los trades han sido borrados');
+        } catch (error) {
+            console.error('Error al borrar:', error);
+            alert('Error al borrar los trades');
+        }
     }
 }
 
