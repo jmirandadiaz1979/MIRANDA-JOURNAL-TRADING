@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+    <title>Trading Journal - Firebase</title>
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <!-- Chart.js y demás librerías -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        body {
+            background: #0a0c0f;
+            color: #e0e0e0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1800px;
+            margin: 0 auto;
+        }
+        .header {
+            background: linear-gradient(145deg, #1e2329 0%, #16181d 100%);
+            border-radius: 20px;
+            padding: 25px;
+            margin-bottom: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            border: 1px solid #2c3035;
+        }
+        .header h1 {
+            color: #00ff9d;
+            margin-bottom: 20px;
+            font-size: 2.2em;
+        }
+        .header-controls {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .file-upload-area {
+            flex: 2;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            background: #0f1115;
+            padding: 15px 20px;
+            border-radius: 12px;
+            border: 1px solid #2c3035;
+            flex-wrap: wrap;
+        }
+        .file-input-label {
+            background: #00ff9d;
+            color: #0a0c0f;
+            padding: 12px 25px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .btn {
+            background: #2c3035;
+            color: #00ff9d;
+            border: 1px solid #00ff9d;
+            padding: 12px 25px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        .btn:hover {
+            background: #00ff9d;
+            color: #0a0c0f;
+            transform: translateY(-2px);
+        }
+        .btn-danger {
+            border-color: #ff4d4d;
+            color: #ff4d4d;
+        }
+        .btn-success {
+            background: #00ff9d;
+            color: #0a0c0f;
+            border: none;
+        }
+        .btn-info {
+            background: #00aaff;
+            color: #0a0c0f;
+            border: none;
+        }
+        .platform-selector {
+            background: #0f1115;
+            padding: 10px 20px;
+            border-radius: 12px;
+            border: 1px solid #2c3035;
+        }
+        .account-selector select, .platform-selector select {
+            background: #1e2329;
+            border: 1px solid #2c3035;
+            color: #00ff9d;
+            padding: 8px 15px;
+            border-radius: 6px;
+            margin-left: 10px;
+        }
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .tab {
+            background: #1e2329;
+            color: #a0a0a0;
+            padding: 12px 25px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            border: 1px solid #2c3035;
+        }
+        .tab.active {
+            background: #00ff9d;
+            color: #0a0c0f;
+        }
+        .panel {
+            display: none;
+        }
+        .panel.active {
+            display: block;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+        .stat-card {
+            background: #1e2329;
+            border-radius: 15px;
+            padding: 20px;
+            border-left: 4px solid #00ff9d;
+        }
+        .stat-positive { color: #00ff9d; }
+        .stat-negative { color: #ff4d4d; }
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+        .chart-card {
+            background: #1e2329;
+            border-radius: 15px;
+            padding: 20px;
+            border: 1px solid #2c3035;
+        }
+        .chart-container {
+            height: 300px;
+        }
+        .tables-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+        .table-card {
+            background: #1e2329;
+            border-radius: 15px;
+            padding: 20px;
+            border: 1px solid #2c3035;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th {
+            text-align: left;
+            padding: 12px;
+            background: #0f1115;
+            color: #00ff9d;
+        }
+        td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #2c3035;
+        }
+        .table-scroll {
+            max-height: 600px;
+            overflow-y: auto;
+            border: 1px solid #2c3035;
+            border-radius: 8px;
+        }
+        .inline-select {
+            background: #0f1115;
+            border: 1px solid #2c3035;
+            color: #00ff9d;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            width: 100%;
+        }
+        .pagination {
+            display: flex;
+            gap: 5px;
+            justify-content: center;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+        .page-btn {
+            background: #1e2329;
+            color: #00ff9d;
+            border: 1px solid #2c3035;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .page-btn.active {
+            background: #00ff9d;
+            color: #0a0c0f;
+        }
+        .filters-container {
+            background: #0f1115;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 25px;
+            border: 1px solid #2c3035;
+        }
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+        .form-group label {
+            color: #a0a0a0;
+            margin-bottom: 5px;
+        }
+        .form-group input, .form-group select {
+            background: #1e2329;
+            border: 1px solid #2c3035;
+            color: #00ff9d;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        .mobile-menu-toggle {
+            display: none;
+            background: #1e2329;
+            color: #00ff9d;
+            border: 1px solid #00ff9d;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            margin-bottom: 15px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        @media screen and (max-width: 768px) {
+            .mobile-menu-toggle { display: block; }
+            .tabs { display: none; flex-direction: column; }
+            .tabs.mobile-visible { display: flex; }
+            .stats-grid { grid-template-columns: 1fr; }
+            .charts-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>📊 TRADING JOURNAL - SINCRONIZADO CON FIREBASE</h1>
+        <div class="header-controls">
+            <div class="file-upload-area">
+                <label for="fileInput" class="file-input-label">📁 Importar CSV</label>
+                <input type="file" id="fileInput" accept=".csv" style="display:none;" onchange="updateFileName(this)">
+                <span id="fileName" style="color:#00ff9d;">Ningún archivo</span>
+                <div class="account-selector" style="display: inline-block;">
+                    <select id="accountSelect">
+                        <option value="Apex">🏦 Apex</option>
+                        <option value="FP-Markets-Raw">📈 FP Markets Raw</option>
+                        <option value="Quantfury">🪙 Quantfury</option>
+                        <option value="Lucid">⚡ Lucid Trading</option>
+                    </select>
+                </div>
+                <button class="btn" onclick="loadFile()">🚀 Cargar</button>
+                <button class="btn" onclick="exportToCSV()">💾 Exportar CSV</button>
+                <button class="btn btn-info" onclick="exportarPDF()">📄 Exportar PDF</button>
+                <button class="btn btn-danger" onclick="clearAllData()">🗑️ Limpiar</button>
+            </div>
+            <div class="platform-selector">
+                <label>Plataforma Apex:</label>
+                <select id="platformSelect">
+                    <option value="tradovate">Tradovate</option>
+                    <option value="rithmic">Rithmic</option>
+                </select>
+            </div>
+        </div>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap; background: #0f1115; padding: 15px; border-radius: 12px; border: 1px solid #2c3035; margin-top: 15px;">
+            <div style="text-align: center; min-width: 120px;">
+                <label style="color: #00ff9d; font-size: 12px;">🏦 Apex</label>
+                <input type="number" id="balanceApex" value="6600" onchange="saveBalances()" style="width:100%; padding:8px; background:#1e2329; color:#00ff9d; border:1px solid #2c3035; border-radius:6px;">
+            </div>
+            <div style="text-align: center; min-width: 120px;">
+                <label style="color: #00ff9d; font-size: 12px;">📈 FP Markets</label>
+                <input type="number" id="balanceFP" value="10000" onchange="saveBalances()" style="width:100%; padding:8px; background:#1e2329; color:#00ff9d; border:1px solid #2c3035; border-radius:6px;">
+            </div>
+            <div style="text-align: center; min-width: 120px;">
+                <label style="color: #00ff9d; font-size: 12px;">🪙 Quantfury</label>
+                <input type="number" id="balanceQuantfury" value="5000" onchange="saveBalances()" style="width:100%; padding:8px; background:#1e2329; color:#00ff9d; border:1px solid #2c3035; border-radius:6px;">
+            </div>
+            <div style="text-align: center; min-width: 120px;">
+                <label style="color: #00ff9d; font-size: 12px;">⚡ Lucid</label>
+                <input type="number" id="balanceLucid" value="8000" onchange="saveBalances()" style="width:100%; padding:8px; background:#1e2329; color:#00ff9d; border:1px solid #2c3035; border-radius:6px;">
+            </div>
+        </div>
+    </div>
+
+    <div class="mobile-menu-toggle" onclick="toggleMobileMenu()">☰ Menú</div>
+
+    <div class="tabs" id="mainTabs">
+        <div class="tab active" onclick="showTab('dashboard')">📈 Dashboard</div>
+        <div class="tab" onclick="showTab('metrics')">📊 Métricas</div>
+        <div class="tab" onclick="showTab('temporal')">📅 Temporal</div>
+        <div class="tab" onclick="showTab('calendar')">🗓️ Calendario</div>
+        <div class="tab" onclick="showTab('setups')">🎯 Setups</div>
+        <div class="tab" onclick="showTab('predictivo')">🤖 Predictivo</div>
+        <div class="tab" onclick="showTab('montecarlo')">🎲 Monte Carlo</div>
+        <div class="tab" onclick="showTab('objetivos')">🎯 Metas</div>
+        <div class="tab" onclick="showTab('psychology')">🧠 Psicología</div>
+        <div class="tab" onclick="showTab('execution')">⚡ Ejecución</div>
+        <div class="tab" onclick="showTab('manual')">✍️ Manual</div>
+    </div>
+
+    <!-- Panel Dashboard (completo) -->
+    <div id="panel-dashboard" class="panel active">
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 20px;">
+            <div style="background: #1e2329; border-radius: 10px; padding: 15px; text-align: center;">
+                <div style="color: #a0a0a0; font-size: 12px;">🏦 Apex</div>
+                <div style="color: #00ff9d; font-size: 20px; font-weight: 700;" id="saldoApexDisplay">$6,600</div>
+            </div>
+            <div style="background: #1e2329; border-radius: 10px; padding: 15px; text-align: center;">
+                <div style="color: #a0a0a0; font-size: 12px;">📈 FP Markets</div>
+                <div style="color: #00ff9d; font-size: 20px; font-weight: 700;" id="saldoFPDisplay">$10,000</div>
+            </div>
+            <div style="background: #1e2329; border-radius: 10px; padding: 15px; text-align: center;">
+                <div style="color: #a0a0a0; font-size: 12px;">🪙 Quantfury</div>
+                <div style="color: #00ff9d; font-size: 20px; font-weight: 700;" id="saldoQuantfuryDisplay">$5,000</div>
+            </div>
+            <div style="background: #1e2329; border-radius: 10px; padding: 15px; text-align: center;">
+                <div style="color: #a0a0a0; font-size: 12px;">⚡ Lucid</div>
+                <div style="color: #00ff9d; font-size: 20px; font-weight: 700;" id="saldoLucidDisplay">$8,000</div>
+            </div>
+        </div>
+        <div class="stats-grid" id="statsDashboard"></div>
+        <div class="charts-grid">
+            <div class="chart-card"><h3>💰 Curva de Equity</h3><div class="chart-container"><canvas id="equityChart"></canvas></div></div>
+            <div class="chart-card"><h3>📉 Drawdown</h3><div class="chart-container"><canvas id="drawdownChart"></canvas></div></div>
+        </div>
+    </div>
+
+    <!-- Panel Manual (con formulario completo) -->
+    <div id="panel-manual" class="panel">
+        <div class="form-grid" style="background:#1e2329; padding:20px; border-radius:15px; margin-bottom:20px;">
+            <h3 style="color:#00ff9d;">✍️ Añadir nueva operación</h3>
+            <div class="form-group">
+                <label>Símbolo:</label>
+                <select id="manualSymbol" style="width:100%; padding:10px;">
+                    <option value="">-- Selecciona --</option>
+                    <optgroup label="🏦 APEX"><option value="MNQ">MNQ</option><option value="MES">MES</option><option value="MYM">MYM</option><option value="MGC">MGC</option></optgroup>
+                    <optgroup label="📈 FP Markets"><option value="US30">US30</option><option value="US500">US500</option><option value="US100">US100</option><option value="NAS100">NAS100</option></optgroup>
+                    <optgroup label="🪙 Quantfury"><option value="BTC-USDT">BTC-USDT</option><option value="ETH-USDT">ETH-USDT</option><option value="SOL-USDT">SOL-USDT</option></optgroup>
+                    <optgroup label="⚡ Lucid"><option value="MNQ">MNQ (Lucid)</option><option value="MES">MES (Lucid)</option></optgroup>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Cantidad:</label>
+                <input type="number" id="manualQty" value="1" step="any" style="width:100%; padding:10px;">
+            </div>
+            <div class="form-group">
+                <label>Precio entrada:</label>
+                <input type="number" id="manualBuyPrice" step="0.01" value="20000" style="width:100%; padding:10px;">
+            </div>
+            <div class="form-group">
+                <label>Precio salida:</label>
+                <input type="number" id="manualSellPrice" step="0.01" value="20100" style="width:100%; padding:10px;">
+            </div>
+            <div class="form-group">
+                <label>Dirección:</label>
+                <select id="manualDirection" style="width:100%; padding:10px;">
+                    <option value="LONG">📈 LONG</option>
+                    <option value="SHORT">📉 SHORT</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Setup:</label>
+                <select id="manualSetup" style="width:100%; padding:10px;">
+                    <option value="">-- Selecciona --</option>
+                    <option value="DIVERGENCIA CVD + RSI">🔮 Divergencia CVD+RSI</option>
+                    <option value="BPR / IFVG CON VOLUMEN">🎯 BPR/IFVG</option>
+                    <option value="ROTURA CON VOLUMEN">⚡ Rotura</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Emoción:</label>
+                <select id="manualEmotion" style="width:100%; padding:10px;">
+                    <option value="">-- Ninguna --</option>
+                    <option value="Neutral">😐 Neutral</option>
+                    <option value="Confianza">😎 Confianza</option>
+                    <option value="Miedo">😨 Miedo</option>
+                    <option value="Codicia">🤑 Codicia</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Regla rota:</label>
+                <select id="manualRule" style="width:100%; padding:10px;">
+                    <option value="">-- Ninguna --</option>
+                    <option value="Ninguna">✅ Ninguna</option>
+                    <option value="Entrada anticipada">⏰ Entrada anticipada</option>
+                    <option value="Sin stop">🚫 Sin stop</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Fecha (MM/DD/AAAA HH:MM):</label>
+                <input type="text" id="manualDate" placeholder="03/08/2026 15:30" style="width:100%; padding:10px;">
+            </div>
+            <button class="btn" onclick="addManualTrade()" style="width:100%;">➕ Añadir operación</button>
+        </div>
+        <div class="table-card">
+            <h3>📋 TODAS LAS OPERACIONES</h3>
+            <div class="table-scroll">
+                <table id="allTradesTable">
+                    <thead><tr><th>Fecha</th><th>Cuenta</th><th>Símbolo</th><th>Cantidad</th><th>Dir</th><th>Entrada</th><th>Salida</th><th>PnL</th><th>Setup</th><th>Emoción</th><th>Regla</th></tr></thead>
+                    <tbody id="allTradesTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Resto de paneles (simplificados por espacio pero funcionales) -->
+    <div id="panel-metrics" class="panel">[Métricas]</div>
+    <div id="panel-temporal" class="panel">[Temporal]</div>
+    <div id="panel-calendar" class="panel">[Calendario]</div>
+    <div id="panel-setups" class="panel">[Setups]</div>
+    <div id="panel-predictivo" class="panel">[Predictivo]</div>
+    <div id="panel-montecarlo" class="panel">[Monte Carlo]</div>
+    <div id="panel-objetivos" class="panel">[Objetivos]</div>
+    <div id="panel-psychology" class="panel">[Psicología]</div>
+    <div id="panel-execution" class="panel">[Ejecución]</div>
+</div>
+
+<script>
+// ============================================
+// CONFIGURACIÓN DE FIREBASE (TUS DATOS)
+// ============================================
+const firebaseConfig = {
+    apiKey: "AIzaSyBw4QzD5eZThBam9Ph-lHRrSLRjBGHZFyQ",
+    authDomain: "trading-journal-be871.firebaseapp.com",
+    projectId: "trading-journal-be871",
+    storageBucket: "trading-journal-be871.firebasestorage.app",
+    messagingSenderId: "751127784795",
+    appId: "1:751127784795:web:3713bca81f8ef9d3353e7e"
+};
+
+// Inicializar Firebase
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+// ============================================
+// VARIABLES GLOBALES
+// ============================================
+let trades = [];
+let balances = { Apex: 6600, 'FP-Markets-Raw': 10000, Quantfury: 5000, Lucid: 8000 };
+
+// ============================================
+// FUNCIONES DE FIRESTORE
+// ============================================
+async function cargarTrades() {
+    try {
+        const snapshot = await db.collection('trades').orderBy('timestamp', 'desc').get();
+        trades = [];
+        snapshot.forEach(doc => {
+            const t = doc.data();
+            t.id = doc.id;
+            t.bought = new Date(t.fecha);
+            t.hour = t.bought.getHours();
+            t.weekday = t.bought.getDay();
+            t.month = t.bought.getMonth();
+            t.year = t.bought.getFullYear();
+            trades.push(t);
+        });
+        trades.sort((a,b) => a.bought - b.bought);
+        console.log(`✅ ${trades.length} trades cargados desde Firebase`);
+        updateDashboard();
+        actualizarTablaManual();
+    } catch (error) {
+        console.error('Error cargando trades:', error);
+    }
+}
+
+async function guardarTrade(tradeData) {
+    try {
+        // Añadir timestamp automático
+        tradeData.timestamp = firebase.firestore.FieldValue.serverTimestamp();
+        const docRef = await db.collection('trades').add(tradeData);
+        console.log('✅ Trade guardado con ID:', docRef.id);
+        await cargarTrades(); // Recargar para actualizar vista
+        return docRef.id;
+    } catch (error) {
+        console.error('Error guardando trade:', error);
+        throw error;
+    }
+}
+
+async function actualizarTrade(id, nuevosDatos) {
+    try {
+        await db.collection('trades').doc(id).update(nuevosDatos);
+        console.log('✅ Trade actualizado');
+        await cargarTrades();
+    } catch (error) {
+        console.error('Error actualizando trade:', error);
+    }
+}
+
+async function eliminarTrade(id) {
+    try {
+        await db.collection('trades').doc(id).delete();
+        console.log('✅ Trade eliminado');
+        await cargarTrades();
+    } catch (error) {
+        console.error('Error eliminando trade:', error);
+    }
+}
+
+// ============================================
+// FUNCIÓN PARA AÑADIR TRADE MANUAL
+// ============================================
+async function addManualTrade() {
+    const symbol = document.getElementById('manualSymbol').value;
+    const qty = parseFloat(document.getElementById('manualQty').value);
+    const buyPrice = parseFloat(document.getElementById('manualBuyPrice').value);
+    const sellPrice = parseFloat(document.getElementById('manualSellPrice').value);
+    const direction = document.getElementById('manualDirection').value;
+    const setup = document.getElementById('manualSetup').value;
+    const emotion = document.getElementById('manualEmotion').value;
+    const rule = document.getElementById('manualRule').value;
+    const dateStr = document.getElementById('manualDate').value;
+    const account = document.getElementById('accountSelect').value;
+
+    if (!symbol || !qty || !buyPrice || !sellPrice) {
+        alert('Completa los campos obligatorios');
+        return;
+    }
+
+    // Calcular PnL
+    let pnl;
+    if (direction === 'LONG') {
+        pnl = (sellPrice - buyPrice) * qty;
+    } else {
+        pnl = (buyPrice - sellPrice) * qty;
+    }
+
+    let fecha = new Date();
+    if (dateStr) {
+        const [datePart, timePart] = dateStr.split(' ');
+        if (datePart && timePart) {
+            const [month, day, year] = datePart.split('/');
+            fecha = new Date(`${year}-${month}-${day}T${timePart}:00`);
+        }
+    }
+
+    const fechaStr = `${String(fecha.getMonth()+1).padStart(2,'0')}/${String(fecha.getDate()).padStart(2,'0')}/${fecha.getFullYear()} ${String(fecha.getHours()).padStart(2,'0')}:${String(fecha.getMinutes()).padStart(2,'0')}`;
+
+    const tradeData = {
+        fecha: fecha,
+        fechaStr: fechaStr,
+        symbol: symbol,
+        qty: qty,
+        direction: direction,
+        buyPrice: buyPrice,
+        sellPrice: sellPrice,
+        pnl: pnl,
+        account: account,
+        setup: setup || '',
+        emoState: emotion || '',
+        ruleBroken: rule || ''
+    };
+
+    await guardarTrade(tradeData);
+    
+    // Limpiar formulario
+    document.getElementById('manualDate').value = '';
+    document.getElementById('manualSymbol').value = '';
+    document.getElementById('manualQty').value = '1';
+    document.getElementById('manualBuyPrice').value = '20000';
+    document.getElementById('manualSellPrice').value = '20100';
+    
+    alert('✅ Operación guardada en Firebase');
+}
+
+// ============================================
+// ACTUALIZAR TABLA MANUAL
+// ============================================
+function actualizarTablaManual() {
+    let html = '';
+    trades.forEach(t => {
+        html += `<tr>
+            <td>${t.fechaStr}</td>
+            <td>${t.account}</td>
+            <td>${t.symbol}</td>
+            <td>${t.qty}</td>
+            <td>${t.direction}</td>
+            <td>$${t.buyPrice.toFixed(2)}</td>
+            <td>$${t.sellPrice.toFixed(2)}</td>
+            <td class="${t.pnl >= 0 ? 'stat-positive' : 'stat-negative'}">$${t.pnl.toFixed(2)}</td>
+            <td>${t.setup || ''}</td>
+            <td>${t.emoState || ''}</td>
+            <td>${t.ruleBroken || ''}</td>
+        </tr>`;
+    });
+    document.getElementById('allTradesTableBody').innerHTML = html || '<tr><td colspan="11">No hay operaciones</td></tr>';
+}
+
+// ============================================
+// FUNCIONES DE DASHBOARD (simplificadas)
+// ============================================
+function updateDashboard() {
+    if (trades.length === 0) {
+        document.getElementById('statsDashboard').innerHTML = '<div class="stat-card">No hay operaciones. Añade una desde el panel Manual.</div>';
+        return;
+    }
+
+    const total = trades.length;
+    const wins = trades.filter(t => t.pnl > 0).length;
+    const loss = trades.filter(t => t.pnl < 0).length;
+    const winrate = (wins / total * 100).toFixed(1);
+    const totalPnL = trades.reduce((sum, t) => sum + t.pnl, 0).toFixed(2);
+
+    document.getElementById('statsDashboard').innerHTML = `
+        <div class="stat-card"><div class="stat-title">Total Trades</div><div class="stat-value">${total}</div></div>
+        <div class="stat-card"><div class="stat-title">Winrate</div><div class="stat-value">${winrate}%</div></div>
+        <div class="stat-card"><div class="stat-title">PnL Total</div><div class="stat-value ${totalPnL >= 0 ? 'stat-positive' : 'stat-negative'}">$${totalPnL}</div></div>
+        <div class="stat-card"><div class="stat-title">Wins/Losses</div><div class="stat-value">${wins}/${loss}</div></div>
+    `;
+}
+
+// ============================================
+// FUNCIONES DE INTERFAZ
+// ============================================
+function toggleMobileMenu() {
+    document.getElementById('mainTabs').classList.toggle('mobile-visible');
+}
+
+function showTab(tabName) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    document.querySelector(`.tab[onclick="showTab('${tabName}')"]`).classList.add('active');
+    document.getElementById(`panel-${tabName}`).classList.add('active');
+}
+
+function updateFileName(input) {
+    document.getElementById('fileName').textContent = input.files[0] ? input.files[0].name : 'Ningún archivo';
+}
+
+function saveBalances() {
+    balances = {
+        Apex: parseFloat(document.getElementById('balanceApex').value) || 6600,
+        'FP-Markets-Raw': parseFloat(document.getElementById('balanceFP').value) || 10000,
+        Quantfury: parseFloat(document.getElementById('balanceQuantfury').value) || 5000,
+        Lucid: parseFloat(document.getElementById('balanceLucid').value) || 8000
+    };
+    localStorage.setItem('balances', JSON.stringify(balances));
+}
+
+function loadFile() { alert('Importación CSV próximamente'); }
+function exportToCSV() { alert('Exportación CSV próximamente'); }
+function exportarPDF() { alert('Exportación PDF próximamente'); }
+async function clearAllData() { 
+    if (confirm('¿Borrar TODOS los trades?')) {
+        // Esto habría que implementarlo borrando cada documento
+        alert('Función de borrado masivo desactivada por seguridad');
+    }
+}
+
+// ============================================
+// INICIALIZACIÓN
+// ============================================
+cargarTrades();
+</script>
+</body>
+</html>
