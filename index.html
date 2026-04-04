@@ -1,0 +1,2689 @@
+<!DOCTYPE html>
+
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+<title>Trading Journal Pro</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ============================
+   DESIGN TOKENS & RESET
+   ============================ */
+:root {
+  --bg:        #060810;
+  --bg2:       #0d1117;
+  --bg3:       #161b22;
+  --bg4:       #1c2330;
+  --border:    #21262d;
+  --border2:   #30363d;
+  --accent:    #00ff9d;
+  --accent2:   #00c97c;
+  --accent3:   rgba(0,255,157,0.12);
+  --blue:      #58a6ff;
+  --blue2:     #1f6feb;
+  --orange:    #f0883e;
+  --red:       #f85149;
+  --yellow:    #e3b341;
+  --purple:    #bc8cff;
+  --text:      #e6edf3;
+  --text2:     #8b949e;
+  --text3:     #6e7681;
+  --radius:    10px;
+  --radius2:   16px;
+  --font-mono: 'IBM Plex Mono', monospace;
+  --font-ui:   'Space Grotesk', sans-serif;
+  --shadow:    0 8px 32px rgba(0,0,0,0.6);
+  --glow:      0 0 20px rgba(0,255,157,0.15);
+}
+
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+background: var(–bg);
+color: var(–text);
+font-family: var(–font-ui);
+font-size: 14px;
+line-height: 1.5;
+min-height: 100vh;
+background-image:
+radial-gradient(ellipse 80% 50% at 50% -20%, rgba(0,255,157,0.05) 0%, transparent 60%),
+radial-gradient(ellipse 60% 40% at 80% 100%, rgba(88,166,255,0.04) 0%, transparent 50%);
+}
+
+.container { max-width: 1840px; margin: 0 auto; padding: 16px; }
+
+/* ============================
+SCROLLBAR
+============================ */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(–bg2); }
+::-webkit-scrollbar-thumb { background: var(–border2); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(–accent); }
+
+/* ============================
+HEADER
+============================ */
+.header {
+background: var(–bg2);
+border: 1px solid var(–border);
+border-radius: var(–radius2);
+padding: 20px 24px;
+margin-bottom: 16px;
+position: relative;
+overflow: hidden;
+}
+.header::before {
+content: ‘’;
+position: absolute;
+top: 0; left: 0; right: 0;
+height: 2px;
+background: linear-gradient(90deg, transparent, var(–accent), transparent);
+}
+.header-top {
+display: flex;
+justify-content: space-between;
+align-items: center;
+margin-bottom: 16px;
+flex-wrap: wrap;
+gap: 12px;
+}
+.logo {
+display: flex;
+align-items: center;
+gap: 12px;
+}
+.logo-icon {
+width: 40px; height: 40px;
+background: linear-gradient(135deg, var(–accent), var(–blue));
+border-radius: 10px;
+display: flex; align-items: center; justify-content: center;
+font-size: 20px;
+box-shadow: var(–glow);
+}
+.logo h1 {
+font-family: var(–font-mono);
+font-size: 18px;
+font-weight: 700;
+color: var(–text);
+letter-spacing: -0.5px;
+}
+.logo h1 span { color: var(–accent); }
+
+.sync-status {
+display: inline-flex; align-items: center; gap: 6px;
+padding: 6px 12px;
+border-radius: 20px;
+font-size: 12px;
+font-family: var(–font-mono);
+font-weight: 600;
+}
+.sync-status.online  { background: rgba(0,255,157,0.1); color: var(–accent); border: 1px solid rgba(0,255,157,0.3); }
+.sync-status.offline { background: rgba(248,81,73,0.1); color: var(–red); border: 1px solid rgba(248,81,73,0.3); }
+.sync-status.syncing { background: rgba(88,166,255,0.1); color: var(–blue); border: 1px solid rgba(88,166,255,0.3); }
+.sync-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:.4;} }
+
+/* ============================
+CONTROLS ROW
+============================ */
+.controls-row {
+display: flex;
+gap: 10px;
+align-items: center;
+flex-wrap: wrap;
+margin-bottom: 14px;
+}
+
+.file-zone {
+display: flex;
+gap: 8px;
+align-items: center;
+background: var(–bg);
+border: 1px solid var(–border);
+border-radius: var(–radius);
+padding: 8px 14px;
+flex-wrap: wrap;
+}
+
+.file-label {
+background: var(–accent);
+color: var(–bg);
+padding: 7px 16px;
+border-radius: 7px;
+cursor: pointer;
+font-weight: 700;
+font-size: 13px;
+transition: all .2s;
+}
+.file-label:hover { background: var(–accent2); transform: translateY(-1px); }
+
+#fileName { color: var(–text2); font-family: var(–font-mono); font-size: 12px; }
+
+/* SELECT ACCOUNT */
+.acct-select, select {
+background: var(–bg3);
+border: 1px solid var(–border2);
+color: var(–accent);
+padding: 8px 12px;
+border-radius: 8px;
+font-family: var(–font-ui);
+font-size: 13px;
+cursor: pointer;
+outline: none;
+transition: border-color .2s;
+}
+.acct-select:focus, select:focus { border-color: var(–accent); }
+.acct-select option, select option { background: var(–bg3); }
+
+/* ============================
+BUTTONS
+============================ */
+.btn {
+background: var(–bg3);
+color: var(–accent);
+border: 1px solid var(–accent);
+padding: 8px 18px;
+border-radius: 8px;
+cursor: pointer;
+font-family: var(–font-ui);
+font-weight: 600;
+font-size: 13px;
+transition: all .2s;
+white-space: nowrap;
+}
+.btn:hover { background: var(–accent); color: var(–bg); transform: translateY(-1px); box-shadow: var(–glow); }
+.btn-danger { border-color: var(–red); color: var(–red); }
+.btn-danger:hover { background: var(–red); color: white; box-shadow: 0 0 16px rgba(248,81,73,0.3); }
+.btn-success { background: var(–accent); color: var(–bg); border: none; }
+.btn-success:hover { background: var(–accent2); }
+.btn-info { background: var(–blue2); color: white; border: none; }
+.btn-info:hover { background: var(–blue); }
+.btn-warning { background: var(–orange); color: var(–bg); border: none; }
+.btn-warning:hover { opacity: .85; }
+.btn-excel { background: linear-gradient(135deg, #1a7a3c, #22a04a); color: white; border: none; }
+.btn-excel:hover { background: linear-gradient(135deg, #22a04a, #2ecc71); box-shadow: 0 0 16px rgba(34,160,74,0.4); }
+
+/* ============================
+BALANCES STRIP
+============================ */
+.balances-strip {
+display: grid;
+grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+gap: 8px;
+background: var(–bg);
+border: 1px solid var(–border);
+border-radius: var(–radius);
+padding: 12px;
+margin-top: 12px;
+}
+.balance-item {
+display: flex; flex-direction: column; align-items: center;
+gap: 4px;
+}
+.balance-item label {
+color: var(–text2);
+font-size: 11px;
+font-family: var(–font-mono);
+text-transform: uppercase;
+letter-spacing: .5px;
+}
+.balance-item input {
+width: 100%;
+background: var(–bg3);
+border: 1px solid var(–border2);
+color: var(–accent);
+padding: 6px 10px;
+border-radius: 6px;
+font-family: var(–font-mono);
+font-size: 13px;
+text-align: center;
+outline: none;
+transition: border-color .2s;
+}
+.balance-item input:focus { border-color: var(–accent); }
+
+/* ============================
+FILTERS
+============================ */
+.filters-wrap {
+background: var(–bg2);
+border: 1px solid var(–border);
+border-radius: var(–radius2);
+padding: 16px 20px;
+margin-bottom: 14px;
+}
+.filters-title {
+font-family: var(–font-mono);
+font-size: 11px;
+font-weight: 700;
+color: var(–accent);
+text-transform: uppercase;
+letter-spacing: 1.5px;
+margin-bottom: 12px;
+}
+.filters-grid {
+display: grid;
+grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+gap: 10px;
+align-items: end;
+}
+.fg label { color: var(–text2); font-size: 12px; margin-bottom: 4px; display: block; }
+.fg input[type=“date”] {
+width: 100%; background: var(–bg3); border: 1px solid var(–border2);
+color: var(–text); padding: 8px 10px; border-radius: 8px;
+font-family: var(–font-ui); font-size: 13px; outline: none;
+}
+.fg input[type=“date”]:focus { border-color: var(–accent); }
+.filter-summary {
+margin-top: 10px;
+background: var(–bg3);
+border-radius: 8px;
+padding: 10px 14px;
+display: flex; align-items: center; gap: 12px;
+font-size: 12px; color: var(–text2);
+flex-wrap: wrap;
+}
+.tag {
+padding: 3px 8px; border-radius: 4px;
+font-size: 11px; font-weight: 700;
+}
+.tag-acct { background: rgba(88,166,255,0.2); color: var(–blue); }
+.tag-sym  { background: rgba(240,136,62,0.2); color: var(–orange); }
+.tag-date { background: rgba(0,255,157,0.15); color: var(–accent); }
+
+/* ============================
+TABS
+============================ */
+.tabs {
+display: flex;
+gap: 4px;
+flex-wrap: wrap;
+margin-bottom: 16px;
+background: var(–bg2);
+border: 1px solid var(–border);
+border-radius: var(–radius2);
+padding: 6px;
+}
+.tab {
+background: transparent;
+color: var(–text2);
+padding: 8px 16px;
+border-radius: 8px;
+cursor: pointer;
+font-weight: 600;
+font-size: 13px;
+border: none;
+transition: all .2s;
+white-space: nowrap;
+}
+.tab:hover { background: var(–bg3); color: var(–text); }
+.tab.active {
+background: var(–accent);
+color: var(–bg);
+box-shadow: var(–glow);
+}
+
+/* ============================
+PANELS
+============================ */
+.panel { display: none; }
+.panel.active { display: block; }
+
+/* ============================
+STAT CARDS
+============================ */
+.stats-grid {
+display: grid;
+grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+gap: 12px;
+margin-bottom: 16px;
+}
+.stat-card {
+background: var(–bg2);
+border: 1px solid var(–border);
+border-radius: var(–radius2);
+padding: 18px 20px;
+position: relative;
+overflow: hidden;
+transition: transform .2s, border-color .2s, box-shadow .2s;
+}
+.stat-card:hover { transform: translateY(-3px); border-color: var(–border2); box-shadow: var(–shadow); }
+.stat-card::after {
+content: ‘’;
+position: absolute;
+bottom: 0; left: 0; right: 0;
+height: 2px;
+background: linear-gradient(90deg, var(–accent), transparent);
+opacity: .5;
+}
+.stat-title {
+color: var(–text3);
+font-family: var(–font-mono);
+font-size: 10px;
+text-transform: uppercase;
+letter-spacing: 1px;
+margin-bottom: 8px;
+}
+.stat-value {
+font-family: var(–font-mono);
+font-size: 26px;
+font-weight: 700;
+color: var(–accent);
+}
+.stat-value.pos { color: var(–accent); }
+.stat-value.neg { color: var(–red); }
+.stat-value.warn { color: var(–yellow); }
+.stat-sub { font-size: 12px; color: var(–text2); margin-top: 4px; }
+
+/* ============================
+SALDO MINI CARDS (dashboard top)
+============================ */
+.saldo-row {
+display: grid;
+grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+gap: 10px;
+margin-bottom: 16px;
+}
+.saldo-card {
+background: var(–bg3);
+border: 1px solid var(–border);
+border-radius: var(–radius);
+padding: 12px 14px;
+text-align: center;
+transition: all .2s;
+}
+.saldo-card:hover { border-color: var(–accent); box-shadow: var(–glow); }
+.saldo-label { color: var(–text3); font-size: 11px; font-family: var(–font-mono); margin-bottom: 4px; }
+.saldo-val { color: var(–accent); font-family: var(–font-mono); font-size: 16px; font-weight: 700; }
+
+/* ============================
+CHART CARDS
+============================ */
+.charts-grid {
+display: grid;
+grid-template-columns: repeat(2, 1fr);
+gap: 12px;
+margin-bottom: 16px;
+}
+.chart-card {
+background: var(–bg2);
+border: 1px solid var(–border);
+border-radius: var(–radius2);
+padding: 18px 20px;
+}
+.card-title {
+font-family: var(–font-mono);
+font-size: 12px;
+font-weight: 700;
+color: var(–accent);
+text-transform: uppercase;
+letter-spacing: .5px;
+margin-bottom: 14px;
+}
+.chart-container { height: 280px; }
+
+/* ============================
+TABLES
+============================ */
+.tables-grid {
+display: grid;
+grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+gap: 12px;
+margin-bottom: 16px;
+}
+.table-card {
+background: var(–bg2);
+border: 1px solid var(–border);
+border-radius: var(–radius2);
+padding: 18px 20px;
+}
+.table-scroll {
+max-height: 500px;
+overflow-y: auto;
+border: 1px solid var(–border);
+border-radius: 8px;
+}
+table { width: 100%; border-collapse: collapse; }
+th {
+background: var(–bg);
+color: var(–accent);
+padding: 10px 12px;
+text-align: left;
+font-family: var(–font-mono);
+font-size: 11px;
+text-transform: uppercase;
+letter-spacing: .5px;
+position: sticky; top: 0; z-index: 5;
+border-bottom: 1px solid var(–border);
+}
+td {
+padding: 9px 12px;
+border-bottom: 1px solid var(–border);
+font-size: 13px;
+transition: background .15s;
+}
+tr:hover td { background: var(–bg3); }
+tr:last-child td { border-bottom: none; }
+.pos { color: var(–accent); }
+.neg { color: var(–red); }
+.warn { color: var(–yellow); }
+
+/* ============================
+INLINE SELECT (trades table)
+============================ */
+.inline-select {
+background: var(–bg);
+border: 1px solid var(–border2);
+color: var(–text);
+padding: 4px 6px;
+border-radius: 5px;
+font-size: 11px;
+width: 100%;
+cursor: pointer;
+}
+.inline-select:hover { border-color: var(–accent); }
+
+/* ============================
+ALERTS
+============================ */
+.alert {
+padding: 12px 16px;
+border-radius: var(–radius);
+margin-bottom: 12px;
+font-size: 13px;
+font-weight: 600;
+border-left: 3px solid;
+}
+.alert-err  { background: rgba(248,81,73,0.08);   border-color: var(–red);    color: var(–red); }
+.alert-ok   { background: rgba(0,255,157,0.08);   border-color: var(–accent); color: var(–accent); }
+.alert-info { background: rgba(88,166,255,0.08);  border-color: var(–blue);   color: var(–blue); }
+.alert-warn { background: rgba(227,179,65,0.08);  border-color: var(–yellow); color: var(–yellow); }
+
+/* ============================
+FORM GROUPS
+============================ */
+.form-card {
+background: var(–bg2);
+border: 1px solid var(–border);
+border-radius: var(–radius2);
+padding: 20px;
+margin-bottom: 16px;
+}
+.form-title { color: var(–accent); font-weight: 700; font-size: 15px; margin-bottom: 16px; }
+.form-grid {
+display: grid;
+grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+gap: 12px;
+}
+.fg { display: flex; flex-direction: column; gap: 5px; }
+.fg label { color: var(–text2); font-size: 12px; }
+.fg input, .fg select, .fg textarea {
+background: var(–bg3);
+border: 1px solid var(–border2);
+color: var(–text);
+padding: 9px 12px;
+border-radius: 8px;
+font-family: var(–font-ui);
+font-size: 13px;
+outline: none;
+transition: border-color .2s;
+}
+.fg input:focus, .fg select:focus, .fg textarea:focus { border-color: var(–accent); }
+.fg small { color: var(–text3); font-size: 11px; }
+
+/* ============================
+PAGINATION
+============================ */
+.pagination { display: flex; gap: 4px; justify-content: center; margin-top: 12px; flex-wrap: wrap; }
+.page-btn {
+background: var(–bg3);
+color: var(–accent);
+border: 1px solid var(–border2);
+padding: 6px 10px;
+border-radius: 5px;
+cursor: pointer;
+font-size: 12px;
+font-family: var(–font-mono);
+transition: all .15s;
+}
+.page-btn:hover, .page-btn.active { background: var(–accent); color: var(–bg); }
+.page-btn:disabled { opacity: .3; cursor: not-allowed; }
+
+/* ============================
+PROGRESS BAR
+============================ */
+.progress-bar {
+width: 100%; height: 6px;
+background: var(–bg);
+border-radius: 3px;
+margin-top: 8px;
+overflow: hidden;
+}
+.progress-fill {
+height: 100%;
+background: linear-gradient(90deg, var(–accent), var(–blue));
+border-radius: 3px;
+transition: width .4s;
+}
+.progress-fill.danger { background: linear-gradient(90deg, var(–red), var(–orange)); }
+
+/* ============================
+CALENDAR
+============================ */
+.calendar-wrap {
+background: var(–bg2);
+border: 1px solid var(–border);
+border-radius: var(–radius2);
+padding: 20px;
+margin-bottom: 16px;
+}
+.cal-header {
+display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;
+}
+.cal-header h2 { font-family: var(–font-mono); font-size: 16px; color: var(–accent); }
+.cal-grid {
+display: grid;
+grid-template-columns: repeat(7, 1fr);
+gap: 4px;
+}
+.cal-dn {
+text-align: center; padding: 8px 4px;
+font-family: var(–font-mono); font-size: 10px;
+color: var(–text3); text-transform: uppercase;
+}
+.cal-day {
+background: var(–bg);
+min-height: 80px; padding: 6px;
+border-radius: 7px;
+border-left: 3px solid var(–border);
+font-size: 12px;
+}
+.cal-day.pos-day { border-left-color: var(–accent); background: rgba(0,255,157,0.03); }
+.cal-day.neg-day { border-left-color: var(–red); background: rgba(248,81,73,0.03); }
+.cal-day.empty   { background: transparent; border-left-color: transparent; }
+.cal-num { font-family: var(–font-mono); font-weight: 700; font-size: 13px; margin-bottom: 2px; }
+.cal-pnl { font-family: var(–font-mono); font-size: 12px; font-weight: 700; }
+.cal-trades { font-size: 10px; color: var(–text3); }
+.cal-week-sum { font-size: 10px; font-weight: 700; margin-top: 4px; padding-top: 4px; border-top: 1px dashed var(–border2); }
+
+/* ============================
+HEATMAP
+============================ */
+.heatmap-grid {
+display: grid;
+grid-template-columns: repeat(24, 1fr);
+gap: 3px;
+margin-top: 12px;
+}
+.heatmap-cell {
+aspect-ratio: 1;
+border-radius: 4px;
+cursor: pointer;
+transition: transform .15s;
+}
+.heatmap-cell:hover { transform: scale(1.3); z-index: 10; }
+.heatmap-labels {
+display: flex; gap: 0; margin-top: 4px;
+}
+.heatmap-label {
+flex: 1; text-align: center;
+font-family: var(–font-mono); font-size: 9px; color: var(–text3);
+}
+
+/* ============================
+INFO BOX
+============================ */
+.info-box {
+background: var(–bg3);
+border-left: 3px solid var(–blue);
+padding: 14px 16px;
+border-radius: 0 var(–radius) var(–radius) 0;
+margin-bottom: 14px;
+font-size: 13px;
+line-height: 1.7;
+color: var(–text2);
+}
+.info-box strong { color: var(–blue); }
+
+/* ============================
+CONTEXT BOX (inside cards)
+============================ */
+.context-box {
+background: var(–bg);
+border-left: 3px solid var(–blue);
+padding: 12px 14px;
+border-radius: 0 8px 8px 0;
+margin-top: 12px;
+font-size: 12px;
+line-height: 1.8;
+color: var(–text2);
+}
+
+/* ============================
+SETUP CARDS
+============================ */
+.setups-grid {
+display: grid;
+grid-template-columns: repeat(3, 1fr);
+gap: 14px;
+margin-bottom: 16px;
+}
+.setup-card {
+background: var(–bg2);
+border: 1px solid var(–border);
+border-radius: var(–radius2);
+padding: 14px;
+transition: all .2s;
+}
+.setup-card:hover { border-color: var(–accent); box-shadow: var(–glow); transform: translateY(-3px); }
+.setup-card-title { color: var(–accent); font-weight: 700; font-size: 13px; margin-bottom: 8px; text-align: center; }
+.setup-img { width: 100%; border-radius: 6px; border: 1px solid var(–border2); margin-bottom: 8px; }
+.setup-desc { background: var(–bg); border-radius: 6px; padding: 8px; font-size: 11px; }
+.signal-badge {
+display: inline-block; padding: 3px 7px; border-radius: 4px;
+font-size: 10px; font-weight: 700; margin-right: 4px; margin-bottom: 4px;
+}
+.sig-buy  { background: rgba(0,255,157,0.2); color: var(–accent); }
+.sig-sell { background: rgba(248,81,73,0.2); color: var(–red); }
+.sig-neu  { background: rgba(227,179,65,0.2); color: var(–yellow); }
+
+/* ============================
+PREDICTIVE CARDS
+============================ */
+.predict-card {
+background: var(–bg2);
+border: 1px solid var(–border);
+border-left: 3px solid var(–blue);
+border-radius: var(–radius2);
+padding: 18px 20px;
+margin-bottom: 12px;
+transition: all .2s;
+}
+.predict-card:hover { border-color: var(–blue); box-shadow: 0 0 20px rgba(88,166,255,0.1); }
+.predict-title { color: var(–blue); font-weight: 700; font-size: 13px; margin-bottom: 8px; }
+.predict-val { font-family: var(–font-mono); font-size: 22px; font-weight: 700; color: var(–accent); margin-bottom: 4px; }
+.predict-sub { font-size: 11px; color: var(–text3); }
+.predict-ctx { font-size: 12px; color: var(–text2); margin-top: 8px; line-height: 1.6; }
+
+/* ============================
+OBJETIVOS
+============================ */
+.objs-panel {
+background: var(–bg2);
+border: 1px solid var(–border);
+border-radius: var(–radius2);
+padding: 20px;
+margin-bottom: 16px;
+}
+.obj-item {
+background: var(–bg);
+padding: 16px;
+border-radius: var(–radius);
+text-align: center;
+}
+.obj-label { color: var(–text2); font-size: 12px; margin-bottom: 4px; }
+.obj-val { font-family: var(–font-mono); font-size: 28px; font-weight: 700; color: var(–accent); }
+
+/* ============================
+MONTECARLO
+============================ */
+.mc-form {
+background: var(–bg2);
+border: 1px solid var(–border);
+border-radius: var(–radius2);
+padding: 18px 20px;
+margin-bottom: 16px;
+}
+
+/* ============================
+REFLEXION / MENTORIA
+============================ */
+.reflexion-cal {
+display: grid;
+grid-template-columns: repeat(7, 1fr);
+gap: 8px;
+margin-top: 14px;
+}
+.ref-day {
+background: var(–bg2);
+border: 1px solid var(–border);
+border-radius: 10px;
+padding: 10px;
+cursor: pointer;
+transition: all .2s;
+min-height: 100px;
+display: flex; flex-direction: column;
+position: relative;
+}
+.ref-day:hover { border-color: var(–accent); box-shadow: var(–glow); transform: translateY(-2px); }
+.ref-day.has-user  { border-left: 3px solid var(–accent); }
+.ref-day.has-mentor{ border-right: 3px solid var(–blue); }
+.ref-day.empty-day { background: transparent; opacity: .3; cursor: default; }
+.ref-day-num { font-family: var(–font-mono); font-size: 16px; font-weight: 700; color: var(–accent); }
+.ref-day-stats { font-size: 10px; color: var(–text3); margin-top: 4px; }
+.ref-preview { font-size: 9px; color: var(–text2); font-style: italic; margin-top: 4px; }
+
+/* ============================
+MODAL
+============================ */
+.modal-overlay {
+display: none;
+position: fixed; inset: 0;
+background: rgba(0,0,0,0.85);
+backdrop-filter: blur(4px);
+z-index: 9000;
+justify-content: center;
+align-items: center;
+}
+.modal-overlay.active { display: flex; }
+.modal-box {
+background: var(–bg2);
+border: 1px solid var(–border);
+border-radius: 20px;
+padding: 28px;
+width: 90%;
+max-width: 820px;
+max-height: 92vh;
+overflow-y: auto;
+position: relative;
+}
+.modal-head {
+display: flex; justify-content: space-between; align-items: center;
+margin-bottom: 18px; padding-bottom: 14px;
+border-bottom: 1px solid var(–border);
+}
+.modal-head h2 { font-family: var(–font-mono); font-size: 16px; color: var(–accent); }
+.modal-close {
+background: none; border: none;
+color: var(–red); font-size: 26px; cursor: pointer; line-height: 1;
+transition: transform .15s;
+}
+.modal-close:hover { transform: rotate(90deg); }
+
+.ref-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+.ref-box {
+background: var(–bg);
+border: 1px solid var(–border);
+border-radius: var(–radius);
+padding: 16px;
+}
+.ref-box.user-box  { border-left: 3px solid var(–accent); }
+.ref-box.mentor-box{ border-left: 3px solid var(–blue); }
+.ref-box h3 { font-size: 13px; font-weight: 700; margin-bottom: 10px; }
+.ref-box.user-box  h3 { color: var(–accent); }
+.ref-box.mentor-box h3 { color: var(–blue); }
+
+.ref-textarea {
+width: 100%; min-height: 130px;
+background: var(–bg2); border: 1px solid var(–border2);
+color: var(–text); padding: 12px; border-radius: 8px;
+font-family: var(–font-ui); font-size: 13px; resize: vertical;
+outline: none; margin-bottom: 10px;
+}
+.ref-textarea:focus { border-color: var(–accent); }
+.mentor-resp {
+background: var(–bg2); border: 1px solid var(–blue);
+border-radius: 8px; padding: 12px; min-height: 130px;
+font-size: 13px; line-height: 1.7; color: var(–text);
+white-space: pre-wrap; max-height: 250px; overflow-y: auto;
+}
+.ai-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn-ai {
+flex: 1; background: var(–blue2); color: white; border: none;
+padding: 9px 16px; border-radius: 8px; cursor: pointer;
+font-weight: 700; font-size: 13px; transition: all .2s;
+}
+.btn-ai:hover { background: var(–blue); transform: translateY(-1px); }
+.btn-ai.sec { background: rgba(240,136,62,0.8); }
+.btn-ai.sec:hover { background: var(–orange); }
+
+.day-stats-mini {
+display: flex; gap: 12px; flex-wrap: wrap;
+background: var(–bg3); border-radius: 8px; padding: 12px;
+margin-bottom: 16px;
+}
+.ds-item { text-align: center; flex: 1; min-width: 70px; }
+.ds-label { font-size: 10px; color: var(–text3); text-transform: uppercase; font-family: var(–font-mono); }
+.ds-val { font-family: var(–font-mono); font-size: 16px; font-weight: 700; color: var(–accent); }
+
+/* ============================
+NOTIFICATION TOAST
+============================ */
+.toast {
+position: fixed; bottom: 24px; right: 24px;
+background: var(–bg3);
+border: 1px solid var(–border);
+border-left: 3px solid var(–accent);
+color: var(–text);
+padding: 12px 20px;
+border-radius: var(–radius);
+z-index: 99999;
+font-weight: 600;
+font-size: 13px;
+box-shadow: var(–shadow);
+animation: slideIn .3s ease;
+}
+@keyframes slideIn { from { transform: translateX(120%); opacity:0; } to { transform: translateX(0); opacity:1; } }
+
+/* ============================
+PROP FIRM BADGES
+============================ */
+.firm-badge {
+display: inline-flex; align-items: center; gap: 5px;
+padding: 3px 8px; border-radius: 5px;
+font-size: 11px; font-weight: 700;
+}
+.firm-apex     { background: rgba(88,166,255,0.15); color: var(–blue); }
+.firm-fp       { background: rgba(188,140,255,0.15); color: var(–purple); }
+.firm-quant    { background: rgba(240,136,62,0.15); color: var(–orange); }
+.firm-tp       { background: rgba(0,255,157,0.12); color: var(–accent); }
+.firm-lucid    { background: rgba(227,179,65,0.15); color: var(–yellow); }
+.firm-tradeify { background: rgba(248,81,73,0.15); color: var(–red); }
+.firm-mff      { background: rgba(0,201,124,0.15); color: #00c97c; }
+
+/* ============================
+NOTIFICATION INDICATOR
+============================ */
+.notif-dot {
+width: 8px; height: 8px; border-radius: 50%;
+display: inline-block; margin-left: 4px;
+}
+.nd-ok   { background: var(–accent); }
+.nd-warn { background: var(–yellow); }
+.nd-err  { background: var(–red); }
+
+/* ============================
+MOBILE MENU
+============================ */
+.mobile-toggle {
+display: none; width: 100%;
+background: var(–bg2); border: 1px solid var(–border);
+color: var(–accent); padding: 12px; border-radius: var(–radius);
+font-weight: 700; cursor: pointer; margin-bottom: 10px;
+font-size: 14px; text-align: left;
+}
+
+/* ============================
+RESPONSIVE
+============================ */
+@media (max-width: 900px) {
+.charts-grid { grid-template-columns: 1fr; }
+.setups-grid { grid-template-columns: 1fr; }
+.ref-grid { grid-template-columns: 1fr; }
+.reflexion-cal { grid-template-columns: repeat(4, 1fr); }
+.cal-grid { gap: 2px; }
+.cal-day { min-height: 55px; }
+}
+@media (max-width: 600px) {
+.mobile-toggle { display: block; }
+.tabs { display: none; }
+.tabs.open { display: flex; }
+.reflexion-cal { grid-template-columns: repeat(3, 1fr); }
+body { padding: 0; }
+.container { padding: 8px; }
+}
+</style>
+
+</head>
+<body>
+<div class="container">
+
+<!-- ======================== HEADER ======================== -->
+
+<div class="header">
+  <div class="header-top">
+    <div class="logo">
+      <div class="logo-icon">&#128202;</div>
+      <h1>TRADING<span>.</span>JOURNAL</h1>
+    </div>
+    <div id="syncStatus" class="sync-status online">
+      <span class="sync-dot"></span>
+      <span>Local &#183; Guardado</span>
+    </div>
+  </div>
+
+  <div class="controls-row">
+    <div class="file-zone">
+      <label for="fileInput" class="file-label">&#128193; Importar CSV</label>
+      <input type="file" id="fileInput" accept=".csv" style="display:none;" onchange="updateFileName(this)">
+      <span id="fileName">Sin archivo</span>
+    </div>
+    <select id="accountSelect" class="acct-select">
+      <option value="Apex">&#127974; Apex Futures</option>
+      <option value="FP-Markets-Raw">&#128200; FP Markets Raw</option>
+      <option value="Quantfury">&#129689; Quantfury</option>
+      <option value="TakeProfit">&#128176; Take Profit Trader</option>
+      <option value="Lucid" selected>&#9889; Lucid Trading</option>
+      <option value="Tradeify">&#128293; Tradeify</option>
+      <option value="MyFundedFutures">&#128142; MyFundedFutures</option>
+    </select>
+    <select id="platformSelect" onchange="updateDashboard()">
+      <option value="tradovate" selected>Tradovate</option>
+      <option value="rithmic">Rithmic</option>
+    </select>
+    <button class="btn" onclick="loadFile()">&#128640; Cargar</button>
+    <button class="btn" onclick="exportToCSV()">&#128190; CSV</button>
+    <button class="btn btn-excel" onclick="exportToExcel()">&#128202; Excel</button>
+    <button class="btn btn-danger" onclick="clearAllData()">&#128465;&#65039; Limpiar</button>
+  </div>
+
+  <!-- Saldos -->
+
+  <div class="balances-strip">
+    <div class="balance-item"><label>&#127974; Apex</label><input type="number" id="balanceApex" value="6600" onchange="saveBalances()"></div>
+    <div class="balance-item"><label>&#128200; FP Markets</label><input type="number" id="balanceFP" value="10000" onchange="saveBalances()"></div>
+    <div class="balance-item"><label>&#129689; Quantfury</label><input type="number" id="balanceQuantfury" value="5000" onchange="saveBalances()"></div>
+    <div class="balance-item"><label>&#128176; Take Profit</label><input type="number" id="balanceTakeProfit" value="8000" onchange="saveBalances()"></div>
+    <div class="balance-item"><label>&#9889; Lucid</label><input type="number" id="balanceLucid" value="8000" onchange="saveBalances()"></div>
+    <div class="balance-item"><label>&#128293; Tradeify</label><input type="number" id="balanceTradeify" value="50000" onchange="saveBalances()"></div>
+    <div class="balance-item"><label>&#128142; MyFundedFutures</label><input type="number" id="balanceMFF" value="50000" onchange="saveBalances()"></div>
+  </div>
+</div>
+
+<!-- ======================== FILTERS ======================== -->
+
+<div class="filters-wrap">
+  <div class="filters-title">&#128269; Filtros Avanzados</div>
+  <div class="filters-grid">
+    <div class="fg">
+      <label>Cuenta</label>
+      <select id="filterAccount" onchange="aplicarFiltros()">
+        <option value="TODAS">Todas las cuentas</option>
+        <option value="Apex">&#127974; Apex</option>
+        <option value="FP-Markets-Raw">&#128200; FP Markets Raw</option>
+        <option value="Quantfury">&#129689; Quantfury</option>
+        <option value="TakeProfit">&#128176; Take Profit Trader</option>
+        <option value="Lucid">&#9889; Lucid Trading</option>
+        <option value="Tradeify">&#128293; Tradeify</option>
+        <option value="MyFundedFutures">&#128142; MyFundedFutures</option>
+      </select>
+    </div>
+    <div class="fg">
+      <label>S&#237;mbolo</label>
+      <select id="filterSymbol" onchange="aplicarFiltros()">
+        <option value="TODOS">Todos los s&#237;mbolos</option>
+      </select>
+    </div>
+    <div class="fg">
+      <label>Desde</label>
+      <input type="date" id="filterDateFrom" onchange="aplicarFiltros()">
+    </div>
+    <div class="fg">
+      <label>Hasta</label>
+      <input type="date" id="filterDateTo" onchange="aplicarFiltros()">
+    </div>
+    <div class="fg" style="justify-content:flex-end;">
+      <button class="btn btn-warning" onclick="limpiarFiltros()">&#129529; Limpiar</button>
+    </div>
+  </div>
+  <div id="filterSummary" class="filter-summary" style="display:none;">
+    <span>Mostrando <strong id="filterCount">0</strong> operaciones</span>
+    <span class="tag tag-acct" id="filterAccountBadge"></span>
+    <span class="tag tag-sym"  id="filterSymbolBadge"></span>
+    <span class="tag tag-date" id="filterDateBadge"></span>
+  </div>
+</div>
+
+<!-- ======================== TABS ======================== -->
+
+<button class="mobile-toggle" onclick="toggleMobileMenu()">☰ Menú de pestañas</button>
+
+<div class="tabs" id="mainTabs">
+  <div class="tab active" onclick="showTab('dashboard')">&#128200; Dashboard</div>
+  <div class="tab" onclick="showTab('metrics')">&#128202; M&#233;tricas</div>
+  <div class="tab" onclick="showTab('temporal')">&#128197; Temporal</div>
+  <div class="tab" onclick="showTab('calendar')">&#128467;&#65039; Calendario</div>
+  <div class="tab" onclick="showTab('setups')">&#127919; Setups</div>
+  <div class="tab" onclick="showTab('predictivo')">&#129302; Predictivo</div>
+  <div class="tab" onclick="showTab('montecarlo')">&#127922; Monte Carlo</div>
+  <div class="tab" onclick="showTab('objetivos')">&#127919; Metas</div>
+  <div class="tab" onclick="showTab('psychology')">&#129504; Psicolog&#237;a</div>
+  <div class="tab" onclick="showTab('execution')">&#9889; Ejecuci&#243;n</div>
+  <div class="tab" onclick="showTab('propfirms')">&#127970; Prop Firms</div>
+  <div class="tab" onclick="showTab('manual')">&#9997;&#65039; Manual</div>
+  <div class="tab" onclick="showTab('mentoria')">&#129496; Mentor&#237;a</div>
+</div>
+
+<!-- ======================== PANEL: DASHBOARD ======================== -->
+
+<div id="panel-dashboard" class="panel active">
+  <div class="saldo-row">
+    <div class="saldo-card"><div class="saldo-label">&#127974; Apex</div><div class="saldo-val" id="saldoApexDisplay">$6,600</div></div>
+    <div class="saldo-card"><div class="saldo-label">&#128200; FP Markets</div><div class="saldo-val" id="saldoFPDisplay">$10,000</div></div>
+    <div class="saldo-card"><div class="saldo-label">&#129689; Quantfury</div><div class="saldo-val" id="saldoQuantfuryDisplay">$5,000</div></div>
+    <div class="saldo-card"><div class="saldo-label">&#128176; Take Profit</div><div class="saldo-val" id="saldoTakeProfitDisplay">$8,000</div></div>
+    <div class="saldo-card"><div class="saldo-label">&#9889; Lucid</div><div class="saldo-val" id="saldoLucidDisplay">$8,000</div></div>
+    <div class="saldo-card"><div class="saldo-label">&#128293; Tradeify</div><div class="saldo-val" id="saldoTradeifyDisplay">$50,000</div></div>
+    <div class="saldo-card"><div class="saldo-label">&#128142; MFF</div><div class="saldo-val" id="saldoMFFDisplay">$50,000</div></div>
+  </div>
+  <div class="stats-grid" id="statsDashboard"></div>
+  <div id="alertasPanel"></div>
+  <div class="charts-grid">
+    <div class="chart-card"><div class="card-title">&#128176; Curva de Equity</div><div class="chart-container"><canvas id="equityChart"></canvas></div></div>
+    <div class="chart-card"><div class="card-title">&#128201; Drawdown</div><div class="chart-container"><canvas id="drawdownChart"></canvas></div></div>
+  </div>
+</div>
+
+<!-- ======================== PANEL: METRICS ======================== -->
+
+<div id="panel-metrics" class="panel">
+  <div class="stats-grid" id="metricsStats"></div>
+  <div class="tables-grid">
+    <div class="table-card"><div class="card-title">&#128269; Por Instrumento</div><table id="instrumentTable"></table></div>
+    <div class="table-card">
+      <div class="card-title">&#128200; Estad&#237;sticas Avanzadas</div>
+      <table id="detailedMetrics"></table>
+      <div id="metricsContext" class="context-box"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ======================== PANEL: TEMPORAL ======================== -->
+
+<div id="panel-temporal" class="panel">
+  <div class="tables-grid">
+    <div class="table-card"><div class="card-title">&#128197; Por D&#237;a de Semana</div><table id="weekdayTable"></table></div>
+    <div class="table-card"><div class="card-title">&#9200; Por Hora</div><table id="hourTable"></table></div>
+  </div>
+  <div class="tables-grid">
+    <div class="table-card"><div class="card-title">&#128198; Por Semana del Mes</div><table id="weekTable"></table></div>
+    <div class="table-card"><div class="card-title">&#128467;&#65039; Por Mes</div><table id="monthTable"></table></div>
+  </div>
+  <div class="chart-card">
+    <div class="card-title">&#128293; Heatmap Horario</div>
+    <div class="heatmap-grid" id="heatmapGrid"></div>
+    <div class="heatmap-labels" id="heatmapLabels"></div>
+  </div>
+</div>
+
+<!-- ======================== PANEL: CALENDAR ======================== -->
+
+<div id="panel-calendar" class="panel">
+  <div class="calendar-wrap">
+    <div class="cal-header">
+      <button class="btn btn-info" onclick="cambiarMes(-1)">&#9664; Anterior</button>
+      <h2 id="calendarMesAno">&#8212;</h2>
+      <button class="btn btn-info" onclick="cambiarMes(1)">Siguiente &#9654;</button>
+    </div>
+    <div class="cal-grid" id="calendarGrid"></div>
+  </div>
+</div>
+
+<!-- ======================== PANEL: SETUPS ======================== -->
+
+<div id="panel-setups" class="panel">
+  <div class="form-card">
+    <div class="form-title">&#128221; Registrar Setup (&#250;ltima operaci&#243;n)</div>
+    <div class="form-grid">
+      <div class="fg">
+        <label>Setup</label>
+        <select id="setupSelect">
+          <option value="">-- Selecciona --</option>
+          <option value="DIVERGENCIA CVD + RSI">&#128302; Divergencia CVD + RSI</option>
+          <option value="BPR / IFVG CON VOLUMEN">&#127919; BPR / IFVG con Volumen</option>
+          <option value="ROTURA CON VOLUMEN">&#9889; Rotura con Volumen</option>
+        </select>
+      </div>
+      <div class="fg" style="justify-content:flex-end;">
+        <button class="btn btn-success" onclick="saveSetupFromSelect()">&#128190; Guardar Setup</button>
+      </div>
+    </div>
+  </div>
+  <div class="setups-grid">
+    <div class="setup-card">
+      <div class="setup-card-title">&#128302; DIVERGENCIA CVD + RSI</div>
+      <img src="https://i.imgur.com/eIl3UFH.png" alt="Divergencia CVD+RSI" class="setup-img">
+      <div class="setup-desc">
+        <span class="signal-badge sig-sell">VENTA</span><span class="signal-badge sig-neu">DIVERGENCIA</span>
+        <p style="color:var(--text2);margin-top:6px;font-size:11px;">Precio en m&#225;ximos ascendentes, RSI en m&#225;ximos descendentes. Posible reversi&#243;n bajista.</p>
+      </div>
+    </div>
+    <div class="setup-card">
+      <div class="setup-card-title">&#127919; BPR / IFVG CON VOLUMEN</div>
+      <img src="https://i.imgur.com/vKhdOgh.png" alt="BPR/IFVG" class="setup-img">
+      <div class="setup-desc">
+        <span class="signal-badge sig-buy">COMPRA</span><span class="signal-badge sig-neu">IFVG</span>
+        <p style="color:var(--text2);margin-top:6px;font-size:11px;">Desequilibrio de precio con incremento de volumen en zona clave.</p>
+      </div>
+    </div>
+    <div class="setup-card">
+      <div class="setup-card-title">&#9889; ROTURA CON VOLUMEN</div>
+      <img src="https://i.imgur.com/TtMBanb.png" alt="Rotura" class="setup-img">
+      <div class="setup-desc">
+        <span class="signal-badge sig-buy">COMPRA</span><span class="signal-badge sig-neu">VOLUMEN</span>
+        <p style="color:var(--text2);margin-top:6px;font-size:11px;">Rotura de nivel clave con pico de volumen confirmatorio.</p>
+      </div>
+    </div>
+  </div>
+  <div class="table-card">
+    <div class="card-title">&#128202; Rendimiento por Setup</div>
+    <table id="setupTable"><thead><tr><th>Setup</th><th>Trades</th><th>Winrate</th><th>PnL</th><th>Expectancy</th></tr></thead><tbody></tbody></table>
+  </div>
+  <div class="chart-card" style="margin-top:14px;">
+    <div class="card-title">&#129383; Distribuci&#243;n de Setups</div>
+    <div class="chart-container"><canvas id="setupChart"></canvas></div>
+  </div>
+</div>
+
+<!-- ======================== PANEL: PREDICTIVO ======================== -->
+
+<div id="panel-predictivo" class="panel">
+  <h2 style="color:var(--accent);font-family:var(--font-mono);font-size:16px;margin-bottom:16px;">&#129302; AN&#193;LISIS PREDICTIVO</h2>
+  <div class="predict-card"><div class="predict-title">&#127749; Winrate antes de las 10am</div><div class="predict-val" id="predictiveMorning">&#8212;</div><div class="predict-sub">Basado en historial</div><div class="predict-ctx" id="predictiveMorningContext"></div></div>
+  <div class="predict-card"><div class="predict-title">&#128201; Tras 3 p&#233;rdidas seguidas...</div><div class="predict-val" id="predictiveStreak">&#8212;</div><div class="predict-sub">Winrate en la siguiente</div><div class="predict-ctx" id="predictiveStreakContext"></div></div>
+  <div class="predict-card"><div class="predict-title">&#128197; Lunes tarde (12&#8211;18h)</div><div class="predict-val" id="predictiveMonday">&#8212;</div><div class="predict-sub">vs media semanal</div><div class="predict-ctx" id="predictiveMondayContext"></div></div>
+  <div class="predict-card"><div class="predict-title">&#128336; Mejor sesi&#243;n del d&#237;a</div><div class="predict-val" id="predictiveSession">&#8212;</div><div class="predict-sub">Franja con mayor rendimiento</div><div class="predict-ctx" id="predictiveSessionContext"></div></div>
+  <div class="tables-grid">
+    <div class="table-card"><div class="card-title">&#128202; Patrones por Hora</div><table id="predictiveHourTable"></table></div>
+    <div class="table-card"><div class="card-title">&#128202; Patrones por D&#237;a</div><table id="predictiveDayTable"></table></div>
+  </div>
+  <div class="table-card"><div class="card-title">&#128200; An&#225;lisis de Rachas</div><table id="predictiveStreakTable"></table></div>
+</div>
+
+<!-- ======================== PANEL: MONTECARLO ======================== -->
+
+<div id="panel-montecarlo" class="panel">
+  <h2 style="color:var(--accent);font-family:var(--font-mono);font-size:16px;margin-bottom:14px;">&#127922; AN&#193;LISIS MONTE CARLO</h2>
+  <div class="info-box"><strong>&#191;Qu&#233; es?</strong> Simula miles de secuencias aleatorias de tus operaciones reales para estimar rangos de resultados probables y riesgo de drawdown.</div>
+  <div class="mc-form">
+    <div class="form-grid">
+      <div class="fg"><label>Simulaciones</label><input type="number" id="monteCarlosims" value="1000" min="100" max="10000"></div>
+      <div class="fg"><label>Trades a simular</label><input type="number" id="monteCarlotrades" value="252" min="10" max="1000"></div>
+      <div class="fg" style="justify-content:flex-end;"><button class="btn btn-info" onclick="ejecutarMonteCarlo()">&#127922; Ejecutar</button></div>
+    </div>
+  </div>
+  <div class="stats-grid" id="monteCarloStats"></div>
+  <div class="chart-card"><div class="card-title">&#128202; Distribuci&#243;n de Resultados</div><div class="chart-container"><canvas id="monteCarloChart"></canvas></div></div>
+  <div class="info-box" id="monteCarloTexto" style="margin-top:14px;">Ejecuta la simulaci&#243;n para ver resultados.</div>
+</div>
+
+<!-- ======================== PANEL: OBJETIVOS ======================== -->
+
+<div id="panel-objetivos" class="panel">
+  <div class="objs-panel">
+    <div class="form-title">&#127919; Metas por Cuenta</div>
+    <div class="form-grid" style="margin-bottom:14px;">
+      <div class="fg">
+        <label>Cuenta</label>
+        <select id="objetivosCuentaSelect" onchange="cargarObjetivosCuenta()">
+          <option value="Apex">&#127974; Apex</option>
+          <option value="FP-Markets-Raw">&#128200; FP Markets</option>
+          <option value="Quantfury">&#129689; Quantfury</option>
+          <option value="TakeProfit">&#128176; Take Profit</option>
+          <option value="Lucid">&#9889; Lucid</option>
+          <option value="Tradeify">&#128293; Tradeify</option>
+          <option value="MyFundedFutures">&#128142; MyFundedFutures</option>
+        </select>
+      </div>
+      <div class="fg"><label>Meta Semanal ($)</label><input type="number" id="objetivoSemanalCuenta" value="2000" step="100" onchange="guardarObjetivosCuenta()"></div>
+      <div class="fg"><label>Meta Mensual ($)</label><input type="number" id="objetivoMensualCuenta" value="8000" step="500" onchange="guardarObjetivosCuenta()"></div>
+      <div class="fg" style="justify-content:flex-end;"><button class="btn btn-success" onclick="guardarObjetivosCuenta()">&#128190; Guardar</button></div>
+    </div>
+  </div>
+  <div class="stats-grid" id="objetivosStats"></div>
+  <div id="objetivosAlertas"></div>
+  <div class="table-card"><div class="card-title">&#128202; Resumen por cuenta</div><table id="objetivosResumenTable"></table></div>
+</div>
+
+<!-- ======================== PANEL: PSICOLOG&#205;A ======================== -->
+
+<div id="panel-psychology" class="panel">
+  <div class="form-card">
+    <div class="form-title">&#128221; Registrar Psicolog&#237;a (&#250;ltima operaci&#243;n)</div>
+    <div class="form-grid">
+      <div class="fg"><label>Emoci&#243;n</label>
+        <select id="emoSelect">
+          <option value="Neutral">&#128528; Neutral</option><option value="Confianza">&#128526; Confianza</option>
+          <option value="Miedo">&#128552; Miedo</option><option value="Codicia">&#129297; Codicia</option>
+        </select>
+      </div>
+      <div class="fg"><label>Regla rota</label>
+        <select id="ruleSelect">
+          <option value="Ninguna">&#9989; Ninguna</option><option value="Entrada anticipada">&#9200; Anticipada</option>
+          <option value="Sin stop">&#128683; Sin stop</option>
+        </select>
+      </div>
+      <div class="fg"><label>Setup</label>
+        <select id="psychologySetup">
+          <option value="">-- Selecciona --</option>
+          <option value="DIVERGENCIA CVD + RSI">&#128302; Divergencia CVD+RSI</option>
+          <option value="BPR / IFVG CON VOLUMEN">&#127919; BPR/IFVG</option>
+          <option value="ROTURA CON VOLUMEN">&#9889; Rotura</option>
+        </select>
+      </div>
+      <div class="fg" style="justify-content:flex-end;"><button class="btn btn-success" onclick="savePsychology()">&#128190; Guardar</button></div>
+    </div>
+  </div>
+  <div class="tables-grid">
+    <div class="table-card"><div class="card-title">&#128202; Por Emoci&#243;n</div><table id="emoTable"></table></div>
+    <div class="table-card"><div class="card-title">&#9888;&#65039; Reglas Rotas</div><table id="rulesTable"></table></div>
+  </div>
+</div>
+
+<!-- ======================== PANEL: EJECUCI&#211;N ======================== -->
+
+<div id="panel-execution" class="panel">
+  <div class="stats-grid">
+    <div class="stat-card"><div class="stat-title">Comisiones + Swaps</div><div class="stat-value neg" id="totalComisiones">&#8212;</div></div>
+    <div class="stat-card"><div class="stat-title">Ratio G/P promedio</div><div class="stat-value" id="ratioGP">&#8212;</div></div>
+    <div class="stat-card"><div class="stat-title">M&#225;x racha ganadora</div><div class="stat-value pos" id="maxRachaGanadora">&#8212;</div></div>
+    <div class="stat-card"><div class="stat-title">M&#225;x racha perdedora</div><div class="stat-value neg" id="maxRachaPerdedora">&#8212;</div></div>
+  </div>
+  <div class="table-card">
+    <div class="card-title">&#128202; An&#225;lisis de Ejecuci&#243;n</div>
+    <table id="executionTable"></table>
+    <div id="executionContext" class="context-box"></div>
+  </div>
+</div>
+
+<!-- ======================== PANEL: PROP FIRMS ======================== -->
+
+<div id="panel-propfirms" class="panel">
+  <h2 style="color:var(--accent);font-family:var(--font-mono);font-size:16px;margin-bottom:16px;">&#127970; PROP FIRMS &#8212; FEES & REGLAS</h2>
+
+  <!-- TRADEIFY -->
+
+  <div class="table-card" style="margin-bottom:14px;">
+    <div class="card-title" style="color:var(--red);">&#128293; TRADEIFY</div>
+    <div class="info-box" style="border-color:var(--red);">
+      <strong>Plataforma:</strong> Tradovate / NinjaTrader &#183; <strong>Fundada:</strong> Marzo 2024 &#183; <strong>CEO:</strong> Brett Simba &#183; <strong>Profit Split:</strong> 90%
+    </div>
+    <table>
+      <thead><tr><th>Plan</th><th>Tama&#241;o</th><th>Precio</th><th>Objetivo</th><th>Max DD</th><th>Regla consistencia</th><th>Payout</th></tr></thead>
+      <tbody>
+        <tr><td><span class="firm-badge firm-tradeify">Growth</span></td><td>$50K</td><td>~$97/mes</td><td>$3,000</td><td>$2,500 trailing EOD</td><td>35% por pago</td><td>Mensual</td></tr>
+        <tr><td><span class="firm-badge firm-tradeify">Growth</span></td><td>$100K</td><td>~$147/mes</td><td>$5,000</td><td>$4,500 trailing EOD</td><td>35%</td><td>Mensual</td></tr>
+        <tr><td><span class="firm-badge firm-tradeify">Growth</span></td><td>$150K</td><td>~$197/mes</td><td>$7,500</td><td>$6,750 trailing EOD</td><td>35%</td><td>Mensual</td></tr>
+        <tr><td><span class="firm-badge firm-tradeify">Select Flex</span></td><td>$50K</td><td>~$111/mes</td><td>$3,000 (3 d&#237;as)</td><td>$2,500 trailing EOD</td><td>40% eval / 0% funded</td><td>Diario (Flex)</td></tr>
+        <tr><td><span class="firm-badge firm-tradeify">Select Flex</span></td><td>$100K</td><td>~$171/mes</td><td>$5,000 (3 d&#237;as)</td><td>$4,000 trailing EOD</td><td>40% eval / 0% funded</td><td>Diario</td></tr>
+        <tr><td><span class="firm-badge firm-tradeify">Select Flex</span></td><td>$150K</td><td>~$251/mes</td><td>$7,500 (3 d&#237;as)</td><td>$6,000 trailing EOD</td><td>40% eval / 0% funded</td><td>Diario</td></tr>
+        <tr><td><span class="firm-badge firm-tradeify">Lightning</span></td><td>$25K</td><td>$244 (&#250;nico)</td><td>Funded directo</td><td>trailing EOD</td><td>20%&#8594;25%&#8594;30% progresivo</td><td>Desde d&#237;a 1</td></tr>
+        <tr><td><span class="firm-badge firm-tradeify">Lightning</span></td><td>$50K</td><td>$319 (&#250;nico)</td><td>Funded directo</td><td>trailing EOD</td><td>20%&#8594;25%&#8594;30%</td><td>Desde d&#237;a 1</td></tr>
+        <tr><td><span class="firm-badge firm-tradeify">Lightning</span></td><td>$100K</td><td>$419 (&#250;nico)</td><td>Funded directo</td><td>trailing EOD</td><td>20%&#8594;25%&#8594;30%</td><td>Desde d&#237;a 1</td></tr>
+        <tr><td><span class="firm-badge firm-tradeify">Lightning</span></td><td>$150K</td><td>$510 (&#250;nico)</td><td>Funded directo</td><td>trailing EOD</td><td>20%&#8594;25%&#8594;30%</td><td>Desde d&#237;a 1</td></tr>
+      </tbody>
+    </table>
+    <div class="info-box" style="margin-top:12px;border-color:var(--red);">
+      <strong>Comisiones (Tradovate all-in):</strong> Verificar en PDF de Tradovate (var&#237;a por instrumento) &#183; <strong>Drawdown:</strong> EOD trailing &#8212; bloquea cuando balance supera saldo inicial + Max DD + $100 (ej: $52,100 en $50K) &#183; <strong>Sin activation fee</strong> en ning&#250;n plan &#183; <strong>Pago v&#237;a Rise</strong> (banco o cripto) en 24&#8211;48h &#183; <strong>Regla 50% micro-scalping</strong>: al menos 50% del profit en trades >10 segundos &#183; <strong>Hedging prohibido</strong> &#183; <strong>HFT bots prohibidos</strong> &#183; <strong>Min 1 trade/semana</strong> para mantener cuenta activa
+    </div>
+  </div>
+
+  <!-- MYFUNDEDFUTURES -->
+
+  <div class="table-card" style="margin-bottom:14px;">
+    <div class="card-title" style="color:#00c97c;">&#128142; MYFUNDEDFUTURES (MFFU)</div>
+    <div class="info-box" style="border-color:#00c97c;">
+      <strong>Fundada:</strong> Nov 2023 &#183; <strong>CEO:</strong> Matthew Leech &#183; <strong>Plataforma:</strong> Tradovate / NinjaTrader / TradingView / Quantower &#183; <strong>Sin activation fee</strong> desde Julio 2025 &#183; <strong>Profit Split:</strong> 100% primeros $10K, luego 90% (Core/Pro 80%)
+    </div>
+    <table>
+      <thead><tr><th>Plan</th><th>Tama&#241;o</th><th>Precio/mes</th><th>Objetivo eval</th><th>Max DD</th><th>Consistencia</th><th>Payout</th></tr></thead>
+      <tbody>
+        <tr><td><span class="firm-badge firm-mff">Core</span></td><td>$50K</td><td>$77</td><td>$3,000</td><td>3% EOD trailing</td><td>50% eval only</td><td>Cada 5 d&#237;as ganadores</td></tr>
+        <tr><td><span class="firm-badge firm-mff">Rapid</span></td><td>$50K</td><td>$129</td><td>$3,000</td><td>Intraday trailing</td><td>50% eval only</td><td>Cada 5 d&#237;as ganadores</td></tr>
+        <tr><td><span class="firm-badge firm-mff">Rapid</span></td><td>$100K</td><td>$229</td><td>$6,000</td><td>Intraday trailing</td><td>50% eval only</td><td>Cada 5 d&#237;as ganadores</td></tr>
+        <tr><td><span class="firm-badge firm-mff">Rapid</span></td><td>$150K</td><td>$329</td><td>$9,000</td><td>Intraday trailing</td><td>50% eval only</td><td>Cada 5 d&#237;as ganadores</td></tr>
+        <tr><td><span class="firm-badge firm-mff">Pro</span></td><td>$50K</td><td>$229</td><td>$3,000</td><td>3% EOD trailing</td><td>50% eval / 0% funded</td><td>Bi-semanal</td></tr>
+        <tr><td><span class="firm-badge firm-mff">Pro</span></td><td>$100K</td><td>$329</td><td>$6,000</td><td>3% EOD trailing</td><td>50% eval / 0% funded</td><td>Bi-semanal</td></tr>
+        <tr><td><span class="firm-badge firm-mff">Pro</span></td><td>$150K</td><td>$477</td><td>$9,000</td><td>3% EOD trailing</td><td>50% eval / 0% funded</td><td>Bi-semanal</td></tr>
+      </tbody>
+    </table>
+    <div class="info-box" style="margin-top:12px;border-color:#00c97c;">
+      <strong>Horario:</strong> 6:00pm &#8211; 4:10pm EST &#183; <strong>Sin daily loss limit</strong> (solo EOD trailing DD) &#183; <strong>Payout m&#237;n:</strong> $250 (Core) / $1,000 (Pro) &#183; <strong>Cap por ciclo:</strong> Core $5K / Rapid $11,250 / Pro cap $100K total &#183; <strong>Live account</strong> tras 5 pagos &#183; <strong>Algo trading permitido</strong> en todos &#183; <strong>News trading permitido</strong> (excepto T1 en Pro funded) &#183; <strong>Reset fee:</strong> $77 (Core) / mismo precio plan (otros) &#183; <strong>Min profit/d&#237;a</strong> para contar como d&#237;a ganador: $100&#8211;$300 seg&#250;n plan &#183; <strong>&#9888;&#65039; Rapid plan:</strong> drawdown intraday trailing (muy estricto, incluye unrealized P&L)
+    </div>
+  </div>
+
+  <!-- COMPARATIVA -->
+
+  <div class="table-card">
+    <div class="card-title">&#9878;&#65039; Comparativa R&#225;pida &#8212; Todas las Prop Firms</div>
+    <table>
+      <thead><tr><th>Firma</th><th>Comisi&#243;n micro</th><th>Comisi&#243;n mini</th><th>Profit Split</th><th>Activation Fee</th><th>Drawdown tipo</th><th>Daily Loss Limit</th></tr></thead>
+      <tbody>
+        <tr><td><span class="firm-badge firm-apex">Apex (Tradovate)</span></td><td>$1.03/RT</td><td>$3.10/RT</td><td>90%</td><td>Var&#237;a</td><td>Trailing EOD</td><td>S&#237;</td></tr>
+        <tr><td><span class="firm-badge firm-apex">Apex (Rithmic)</span></td><td>$1.33/RT</td><td>$3.98/RT</td><td>90%</td><td>Var&#237;a</td><td>Trailing EOD</td><td>S&#237;</td></tr>
+        <tr><td><span class="firm-badge firm-fp">FP Markets Raw</span></td><td>$0 comis</td><td>$0 comis</td><td>&#8212;</td><td>&#8212;</td><td>Margen</td><td>&#8212;</td></tr>
+        <tr><td><span class="firm-badge firm-quant">Quantfury</span></td><td>$0</td><td>$0</td><td>100%</td><td>&#8212;</td><td>&#8212;</td><td>&#8212;</td></tr>
+        <tr><td><span class="firm-badge firm-tp">Take Profit Trader</span></td><td>$0.50/RT</td><td>$5.00/RT</td><td>80%+</td><td>$130</td><td>Trailing EOD</td><td>S&#237;</td></tr>
+        <tr><td><span class="firm-badge firm-lucid">Lucid Trading</span></td><td>$0.50/lado</td><td>$1.75/lado</td><td>90%</td><td>&#8212;</td><td>Trailing EOD</td><td>&#8212;</td></tr>
+        <tr><td><span class="firm-badge firm-tradeify">Tradeify (Growth)</span></td><td>Ver Tradovate PDF</td><td>Ver PDF</td><td>90%</td><td>$0</td><td>Trailing EOD</td><td>S&#237; (soft)</td></tr>
+        <tr><td><span class="firm-badge firm-tradeify">Tradeify (Select)</span></td><td>Ver PDF</td><td>Ver PDF</td><td>90%</td><td>$0</td><td>Trailing EOD</td><td>S&#237; (soft)</td></tr>
+        <tr><td><span class="firm-badge firm-mff">MFFU Core/Pro</span></td><td>Ver MFFU help</td><td>Ver MFFU help</td><td>80%</td><td>$0</td><td>EOD trailing 3%</td><td>No</td></tr>
+        <tr><td><span class="firm-badge firm-mff">MFFU Rapid</span></td><td>Ver MFFU help</td><td>Ver MFFU help</td><td>90%</td><td>$0</td><td>Intraday trailing</td><td>No</td></tr>
+      </tbody>
+    </table>
+    <div class="info-box" style="margin-top:12px;">
+      <strong>Nota:</strong> Todas las comisiones de futuros son round-trip (RT) salvo indicaci&#243;n. Lucid cobra por lado. FP Markets cobra swap nocturno: US30 ~$9/noche, US500 ~$2.5/noche, US100 ~$6/noche (triple mi&#233;rcoles). Los datos pueden cambiar &#8212; verifica siempre en la web oficial de cada firma.
+    </div>
+  </div>
+</div>
+
+<!-- ======================== PANEL: MANUAL ======================== -->
+
+<div id="panel-manual" class="panel">
+  <div class="form-card">
+    <div class="form-title">&#9997;&#65039; A&#241;adir Operaci&#243;n Manual</div>
+    <div class="form-grid">
+      <div class="fg">
+        <label>S&#237;mbolo</label>
+        <select id="manualSymbol">
+          <option value="">-- Selecciona --</option>
+          <optgroup label="&#127974; Apex &#8212; Futuros Micros">
+            <option value="MNQ">MNQ &#8211; Micro Nasdaq</option>
+            <option value="MES">MES &#8211; Micro S&P 500</option>
+            <option value="MYM">MYM &#8211; Micro Dow</option>
+            <option value="MGC">MGC &#8211; Micro Gold</option>
+          </optgroup>
+          <optgroup label="&#128200; FP Markets &#8212; &#205;ndices">
+            <option value="US30">US30</option><option value="US500">US500</option>
+            <option value="US100">US100</option><option value="NAS100">NAS100</option>
+          </optgroup>
+          <optgroup label="&#129689; Quantfury &#8212; Criptos">
+            <option value="BTC-USDT">BTC-USDT</option><option value="ETH-USDT">ETH-USDT</option>
+            <option value="SOL-USDT">SOL-USDT</option>
+          </optgroup>
+          <optgroup label="&#128176; Take Profit Trader">
+            <option value="ES">ES &#8211; E-mini S&P</option><option value="NQ">NQ &#8211; E-mini Nasdaq</option>
+            <option value="MES">MES &#8211; Micro S&P</option><option value="MNQ">MNQ &#8211; Micro NQ</option>
+            <option value="CL">CL &#8211; Crude Oil</option><option value="GC">GC &#8211; Gold</option>
+          </optgroup>
+          <optgroup label="&#9889; Lucid Trading">
+            <option value="ES">ES (Lucid)</option><option value="NQ">NQ (Lucid)</option>
+            <option value="MES">MES (Lucid)</option><option value="MNQ">MNQ (Lucid)</option>
+          </optgroup>
+          <optgroup label="&#128293; Tradeify">
+            <option value="MNQ">MNQ (Tradeify)</option><option value="MES">MES (Tradeify)</option>
+            <option value="NQ">NQ (Tradeify)</option><option value="ES">ES (Tradeify)</option>
+            <option value="MGC">MGC (Tradeify)</option><option value="MCL">MCL &#8211; Micro CL</option>
+          </optgroup>
+          <optgroup label="&#128142; MyFundedFutures">
+            <option value="MNQ">MNQ (MFF)</option><option value="MES">MES (MFF)</option>
+            <option value="NQ">NQ (MFF)</option><option value="ES">ES (MFF)</option>
+            <option value="MGC">MGC (MFF)</option><option value="MBT">MBT &#8211; Micro BTC</option>
+            <option value="M6E">M6E &#8211; Micro EUR/USD</option>
+          </optgroup>
+        </select>
+      </div>
+      <div class="fg"><label>Cantidad</label><input type="number" id="manualQty" value="1" step="any" min="0.001"><small>Puedes usar decimales</small></div>
+      <div class="fg"><label>Precio entrada</label><input type="number" id="manualBuyPrice" step="0.01" value="20000"></div>
+      <div class="fg"><label>Precio salida</label><input type="number" id="manualSellPrice" step="0.01" value="20100"></div>
+      <div class="fg">
+        <label>Direcci&#243;n</label>
+        <select id="manualDirection">
+          <option value="LONG">&#128200; LONG</option>
+          <option value="SHORT">&#128201; SHORT</option>
+        </select>
+      </div>
+      <div class="fg">
+        <label>Setup</label>
+        <select id="manualSetup">
+          <option value="">-- Ninguno --</option>
+          <option value="DIVERGENCIA CVD + RSI">&#128302; Divergencia CVD+RSI</option>
+          <option value="BPR / IFVG CON VOLUMEN">&#127919; BPR/IFVG</option>
+          <option value="ROTURA CON VOLUMEN">&#9889; Rotura</option>
+        </select>
+      </div>
+      <div class="fg">
+        <label>Emoci&#243;n</label>
+        <select id="manualEmotion">
+          <option value="">-- Ninguna --</option>
+          <option value="Neutral">&#128528; Neutral</option><option value="Confianza">&#128526; Confianza</option>
+          <option value="Miedo">&#128552; Miedo</option><option value="Codicia">&#129297; Codicia</option>
+          <option value="Estres">&#128560; Estr&#233;s</option><option value="Paciencia">&#129496; Paciencia</option>
+        </select>
+      </div>
+      <div class="fg">
+        <label>Regla rota</label>
+        <select id="manualRule">
+          <option value="">-- Ninguna --</option>
+          <option value="Ninguna">&#9989; Ninguna</option>
+          <option value="Entrada anticipada">&#9200; Anticipada</option>
+          <option value="Salida anticipada">&#9201;&#65039; Salida anticipada</option>
+          <option value="Sin stop">&#128683; Sin stop</option>
+          <option value="Sobretrading">&#128202; Sobretrading</option>
+          <option value="Venganza">&#9876;&#65039; Venganza</option>
+          <option value="Sobreapalancamiento">&#9878;&#65039; Sobreapalancamiento</option>
+        </select>
+      </div>
+      <div class="fg"><label>Noches abierta (FP Markets)</label>
+        <select id="overnightNights">
+          <option value="0">0 &#8212; Cerrada</option><option value="1">1 noche</option>
+          <option value="2">2 noches</option><option value="3">3 noches (+ fin de semana)</option>
+          <option value="4">4 noches</option><option value="5">5 noches (semana entera)</option>
+        </select>
+      </div>
+      <div class="fg"><label>Swap aplicado ($)</label><input type="number" id="swapAmount" step="0.01" value="0"><small>Negativo si te cobran</small></div>
+      <div class="fg"><label>Fecha (MM/DD/AAAA HH:MM)</label><input type="text" id="manualDate" placeholder="04/04/2026 15:30"></div>
+    </div>
+    <button class="btn btn-success" onclick="addManualTrade()" style="margin-top:14px;width:100%;">&#10133; A&#241;adir Operaci&#243;n</button>
+  </div>
+
+  <div class="table-card">
+    <div class="card-title">&#128203; Todas las Operaciones</div>
+    <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap;">
+      <div>
+        <label style="color:var(--text2);font-size:12px;margin-right:6px;">Mostrar:</label>
+        <select id="rowsPerPage" style="background:var(--bg3);color:var(--accent);border:1px solid var(--border2);padding:6px 10px;border-radius:6px;" onchange="cambiarFilasPorPagina()">
+          <option value="50">50 filas</option><option value="100" selected>100 filas</option>
+          <option value="200">200 filas</option><option value="500">500 filas</option>
+        </select>
+      </div>
+      <span id="paginationInfo" style="color:var(--text2);font-size:12px;font-family:var(--font-mono);">P&#225;gina 1 de 1</span>
+    </div>
+    <div class="table-scroll">
+      <table id="allTradesTable">
+        <thead>
+          <tr><th>Fecha</th><th>Cuenta</th><th>S&#237;mbolo</th><th>Qty</th><th>Dir</th><th>Entrada</th><th>Salida</th><th>PnL (neto)</th><th>Setup</th><th>Emoci&#243;n</th><th>Regla</th><th>&#128465;&#65039;</th></tr>
+        </thead>
+        <tbody id="allTradesTableBody"></tbody>
+      </table>
+    </div>
+    <div class="pagination" id="pagination"></div>
+    <p style="text-align:center;color:var(--text3);font-size:11px;margin-top:8px;">&#128161; Doble click en el s&#237;mbolo para filtrar</p>
+  </div>
+</div>
+
+<!-- ======================== PANEL: MENTOR&#205;A ======================== -->
+
+<div id="panel-mentoria" class="panel">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+    <h2 style="color:var(--accent);font-family:var(--font-mono);font-size:16px;">&#129496; DIARIO DE REFLEXI&#211;N</h2>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-info" onclick="cambiarMesReflexion(-1)">&#9664; Anterior</button>
+      <button class="btn btn-info" onclick="cambiarMesReflexion(1)">Siguiente &#9654;</button>
+    </div>
+  </div>
+  <div style="text-align:center;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:10px;margin-bottom:12px;">
+    <span style="color:var(--accent);font-family:var(--font-mono);font-size:18px;font-weight:700;" id="reflexionMesActual">&#8212;</span>
+  </div>
+  <div class="reflexion-cal" id="reflexionCalendar"></div>
+
+  <!-- Modal reflexi&#243;n -->
+
+  <div class="modal-overlay" id="reflexionModal">
+    <div class="modal-box">
+      <div class="modal-head">
+        <h2 id="modalFecha">Reflexi&#243;n del d&#237;a</h2>
+        <button class="modal-close" onclick="cerrarModalReflexion()">&times;</button>
+      </div>
+      <div class="day-stats-mini" id="modalDayStats">
+        <div class="ds-item"><div class="ds-label">Trades</div><div class="ds-val" id="modalTrades">0</div></div>
+        <div class="ds-item"><div class="ds-label">PnL</div><div class="ds-val" id="modalPnl">$0</div></div>
+        <div class="ds-item"><div class="ds-label">Winrate</div><div class="ds-val" id="modalWinrate">0%</div></div>
+        <div class="ds-item"><div class="ds-label">Mejor hora</div><div class="ds-val" id="modalMejorHora">&#8212;</div></div>
+      </div>
+      <div class="ref-grid">
+        <div class="ref-box user-box">
+          <h3>&#128221; Tu reflexi&#243;n</h3>
+          <textarea id="reflexionUserText" class="ref-textarea" placeholder="&#191;C&#243;mo te sentiste hoy? &#191;Qu&#233; sali&#243; bien? &#191;Qu&#233; mejorar&#237;as?..."></textarea>
+          <div class="ai-btns">
+            <button class="btn-ai" onclick="guardarReflexion()">&#128190; Guardar</button>
+            <button class="btn-ai sec" onclick="analizarConMentor()">&#129302; Mentor IA</button>
+          </div>
+        </div>
+        <div class="ref-box mentor-box">
+          <h3>&#129302; Mentor IA</h3>
+          <div id="mentorResponse" class="mentor-resp" style="color:var(--text3);font-style:italic;">El mentor analizar&#225; tu reflexi&#243;n...</div>
+        </div>
+      </div>
+      <div style="margin-top:14px;border-top:1px solid var(--border);padding-top:12px;">
+        <h3 style="color:var(--accent);font-size:13px;margin-bottom:8px;">&#128220; Historial</h3>
+        <div id="reflexionHistorial" style="max-height:180px;overflow-y:auto;background:var(--bg);border-radius:8px;padding:12px;font-size:12px;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /container -->
+<script>
+// ============================================================
+// CONSTANTES \u2014 FEES ACTUALIZADAS CON TRADEIFY Y MYFUNDEDFUTURES
+// ============================================================
+const COMISIONES = {
+    tradovate: { mini: 3.10, micro: 1.03 },
+    rithmic:   { mini: 3.98, micro: 1.33 },
+    takeProfit: { standard: 5.00, micro: 0.50 },
+    lucid:      { micro: 1.00, mini: 3.50 },   // $0.50/lado = $1.00 RT micro
+    // Tradeify usa Tradovate, mismas comisiones (ver PDF Tradovate)
+    tradeify:   { mini: 3.10, micro: 1.03 },
+    // MFFU: comisiones similares a Tradovate (verificar en su help center)
+    mff:        { mini: 3.10, micro: 1.03 }
+};
+
+const SETUP_OPTIONS = [
+{ value: ‘’, label: ‘– Ninguno –’ },
+{ value: ‘DIVERGENCIA CVD + RSI’, label: ‘\ud83d\udd2e Divergencia CVD+RSI’ },
+{ value: ‘BPR / IFVG CON VOLUMEN’, label: ‘\ud83c\udfaf BPR/IFVG con volumen’ },
+{ value: ‘ROTURA CON VOLUMEN’, label: ‘\u26a1 Rotura con volumen’ }
+];
+const EMO_OPTIONS = [
+{ value: ‘’, label: ‘– Ninguna –’ }, { value: ‘Neutral’, label: ‘\ud83d\ude10 Neutral’ },
+{ value: ‘Confianza’, label: ‘\ud83d\ude0e Confianza’ }, { value: ‘Miedo’, label: ‘\ud83d\ude28 Miedo’ },
+{ value: ‘Codicia’, label: ‘\ud83e\udd11 Codicia’ }, { value: ‘Estres’, label: ‘\ud83d\ude30 Estr\u00e9s’ },
+{ value: ‘Paciencia’, label: ‘\ud83e\uddd8 Paciencia’ }
+];
+const RULE_OPTIONS = [
+{ value: ‘’, label: ‘– Ninguna –’ }, { value: ‘Ninguna’, label: ‘\u2705 Ninguna’ },
+{ value: ‘Entrada anticipada’, label: ‘\u23f0 Entrada anticipada’ },
+{ value: ‘Salida anticipada’, label: ‘\u23f1\ufe0f Salida anticipada’ },
+{ value: ‘Sin stop’, label: ‘\ud83d\udeab Sin stop’ }, { value: ‘Sobretrading’, label: ‘\ud83d\udcca Sobretrading’ },
+{ value: ‘Venganza’, label: ‘\u2694\ufe0f Venganza’ }, { value: ‘Sobreapalancamiento’, label: ‘\u2696\ufe0f Sobreapalancamiento’ }
+];
+
+// ============================================================
+// VARIABLES GLOBALES
+// ============================================================
+let trades = [], psychologyData = [], reflexiones = {};
+let calendarFecha = new Date(), reflexionFecha = new Date();
+let objetivosPorCuenta = {
+Apex:{semanal:2000,mensual:8000}, ‘FP-Markets-Raw’:{semanal:2000,mensual:8000},
+Quantfury:{semanal:2000,mensual:8000}, TakeProfit:{semanal:2000,mensual:8000},
+Lucid:{semanal:2000,mensual:8000}, Tradeify:{semanal:2000,mensual:8000},
+MyFundedFutures:{semanal:2000,mensual:8000}
+};
+let tradesFiltrados = [], filtroActivo = false;
+let paginaActual = 1, filasPorPagina = 100;
+let fechaModalActual = ‘’;
+let balances = {
+Apex:6600,‘FP-Markets-Raw’:10000,Quantfury:5000,TakeProfit:8000,
+Lucid:8000,Tradeify:50000,MyFundedFutures:50000
+};
+
+// ============================================================
+// SUPABASE CONFIG
+// ============================================================
+const SUPABASE_URL = ‘https://zosgcukhowghqapcoxkl.supabase.co’;
+const SUPABASE_KEY = ‘eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inpvc2djdWtob3dnaHFhcGNveGtsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUzMDM2MjIsImV4cCI6MjA5MDg3OTYyMn0.3ONSAoR6smqse3hAijsq4V_VNxA7VAXpm-9-jPjiuQ8’;
+const _sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ============================================================
+// SYNC STATUS
+// ============================================================
+function updateSyncStatus(s) {
+const el = document.getElementById(‘syncStatus’);
+if(!el) return;
+el.className = ’sync-status ’ + s;
+const msgs = { online:‘Supabase \u00b7 Sync’, offline:‘Offline \u00b7 Local’, syncing:‘Sincronizando…’ };
+el.innerHTML = ‘<span class="sync-dot"></span><span>’ + (msgs[s]||s) + ‘</span>’;
+}
+
+// ============================================================
+// PERSISTENCIA - SUPABASE + localStorage backup
+// ============================================================
+function _saveLocal() {
+try {
+// Serializar trades convirtiendo Date a string
+const tradesSerial = trades.map(t => Object.assign({}, t, {
+bought: t.bought instanceof Date ? t.bought.toISOString() : t.bought
+}));
+localStorage.setItem(‘tj_trades’, JSON.stringify(tradesSerial));
+localStorage.setItem(‘tj_psych’, JSON.stringify(psychologyData));
+localStorage.setItem(‘tj_reflex’, JSON.stringify(reflexiones));
+localStorage.setItem(‘tj_balances’, JSON.stringify(balances));
+localStorage.setItem(‘tj_objetivos’, JSON.stringify(objetivosPorCuenta));
+} catch(e) { console.warn(‘localStorage error:’, e); }
+}
+
+function _loadLocal() {
+try {
+const t = localStorage.getItem(‘tj_trades’);
+if(t) { trades=JSON.parse(t); trades.forEach(x=>{ if(typeof x.bought===‘string’) x.bought=new Date(x.bought); }); }
+const p=localStorage.getItem(‘tj_psych’); if(p) psychologyData=JSON.parse(p);
+const r=localStorage.getItem(‘tj_reflex’); if(r) reflexiones=JSON.parse(r);
+const b=localStorage.getItem(‘tj_balances’); if(b) balances=JSON.parse(b);
+const o=localStorage.getItem(‘tj_objetivos’); if(o) objetivosPorCuenta=JSON.parse(o);
+} catch(e) { console.warn(‘loadLocal error:’, e); }
+}
+
+async function saveAllData() {
+_saveLocal();
+updateSyncStatus(‘syncing’);
+try {
+const tradesClean = JSON.parse(JSON.stringify(trades.map(t=>({
+symbol:t.symbol,qty:t.qty,buyPrice:t.buyPrice,sellPrice:t.sellPrice,
+pnl:t.pnl,bought:t.bought instanceof Date?t.bought.toISOString():t.bought,
+hour:t.hour,weekday:t.weekday,month:t.month,year:t.year,
+timestamp:t.timestamp,direction:t.direction||‘LONG’,
+emoState:t.emoState||’’,ruleBroken:t.ruleBroken||’’,
+setup:t.setup||’’,account:t.account||’’,
+overnightNights:t.overnightNights||0,swapAmount:t.swapAmount||0
+}))));
+await _sb.from(‘trades’).delete().neq(‘id’,‘00000000-0000-0000-0000-000000000000’);
+for(let i=0;i<tradesClean.length;i+=100){
+const res=await _sb.from(‘trades’).insert(tradesClean.slice(i,i+100).map(t=>({data:t})));
+if(res.error) throw new Error(’trades: ’+res.error.message);
+}
+const pC=JSON.parse(JSON.stringify(psychologyData));
+await _sb.from(‘psychology’).delete().neq(‘id’,‘00000000-0000-0000-0000-000000000000’);
+if(pC.length>0){const r2=await _sb.from(‘psychology’).insert(pC.map(p=>({data:p})));if(r2.error)console.warn(‘psych:’,r2.error.message);}
+for(const k of Object.keys(reflexiones)){
+await _sb.from(‘reflexiones’).upsert({id:k,data:JSON.parse(JSON.stringify(reflexiones[k])),updated_at:new Date().toISOString()});
+}
+await _sb.from(‘config’).upsert({key:‘balances’,data:JSON.parse(JSON.stringify(balances)),updated_at:new Date().toISOString()});
+await _sb.from(‘config’).upsert({key:‘objetivos’,data:JSON.parse(JSON.stringify(objetivosPorCuenta)),updated_at:new Date().toISOString()});
+updateSyncStatus(‘online’);
+} catch(e) {
+console.error(‘Supabase save:’,String(e));
+updateSyncStatus(‘offline’);
+}
+}
+
+async function loadFromStorage() {
+_loadLocal();
+updateSyncStatus(‘syncing’);
+try {
+const H = {‘apikey’:SUPABASE_KEY,‘Authorization’:‘Bearer ‘+SUPABASE_KEY,‘Content-Type’:‘application/json’};
+const B = SUPABASE_URL+’/rest/v1’;
+const [tR,pR,rR,bR,oR] = await Promise.all([
+fetch(B+’/trades?select=data’,{headers:H}).then(r=>r.json()).catch(()=>[]),
+fetch(B+’/psychology?select=data’,{headers:H}).then(r=>r.json()).catch(()=>[]),
+fetch(B+’/reflexiones?select=id,data’,{headers:H}).then(r=>r.json()).catch(()=>[]),
+fetch(B+’/config?select=key,data&key=eq.balances’,{headers:H}).then(r=>r.json()).catch(()=>[]),
+fetch(B+’/config?select=key,data&key=eq.objetivos’,{headers:H}).then(r=>r.json()).catch(()=>[])
+]);
+if(tR&&tR.length>0){trades=tR.map(r=>{const t=r.data;t.bought=new Date(t.bought);return t;});trades.sort((a,b)=>a.bought-b.bought);}
+if(pR&&pR.length>0) psychologyData=pR.map(r=>r.data);
+if(rR&&rR.length>0){reflexiones={};rR.forEach(r=>{reflexiones[r.id]=r.data;});}
+if(bR&&bR.length>0) balances=bR[0].data;
+if(oR&&oR.length>0) objetivosPorCuenta=oR[0].data;
+_saveLocal();
+updateSyncStatus(‘online’);
+return true;
+} catch(e) {
+console.error(‘Supabase load error:’,String(e));
+updateSyncStatus(‘offline’);
+return false;
+}
+}
+
+// ============================================================
+// TOAST NOTIFICATIONS
+// ============================================================
+function toast(msg, type=‘ok’) {
+const colors = { ok:‘var(–accent)’, warn:‘var(–yellow)’, err:‘var(–red)’, info:‘var(–blue)’ };
+const el = document.createElement(‘div’);
+el.className = ‘toast’;
+el.style.borderLeftColor = colors[type] || colors.ok;
+el.innerHTML = msg;
+document.body.appendChild(el);
+setTimeout(()=>el.remove(), 3000);
+}
+
+// ============================================================
+// CALCULAR COSTES \u2014 SOPORTE TRADEIFY + MFF
+// ============================================================
+function calcularCostes(trade) {
+const cuenta = trade.account || ‘Apex’;
+const plat = document.getElementById(‘platformSelect’).value;
+let comision = 0, swaps = 0;
+
+```
+const isMicro = sym => /^M(NQ|ES|YM|GC|CL|BT|6E)/.test(sym) || sym.includes('MCL') || sym.includes('MBT') || sym.includes('M6E');
+
+if (cuenta === 'Apex') {
+    comision = (isMicro(trade.symbol) ? COMISIONES[plat].micro : COMISIONES[plat].mini) * trade.qty;
+}
+else if (cuenta === 'FP-Markets-Raw') {
+    comision = 0;
+    if (trade.swapAmount) { swaps = trade.swapAmount; }
+    else if (trade.overnightNights > 0) {
+        const sp = { US30:9, US500:2.5, US100:6, NAS100:6 };
+        let spn = 0;
+        for (const k in sp) { if (trade.symbol.toUpperCase().includes(k)) { spn = sp[k]; break; } }
+        swaps = -spn * trade.overnightNights * trade.qty;
+    }
+}
+else if (cuenta === 'Quantfury') { comision = 0; swaps = 0; }
+else if (cuenta === 'TakeProfit') {
+    comision = (isMicro(trade.symbol) ? COMISIONES.takeProfit.micro : COMISIONES.takeProfit.standard) * trade.qty;
+}
+else if (cuenta === 'Lucid') {
+    // $0.50/lado = $1.00 RT para micros; $1.75/lado = $3.50 RT para minis
+    comision = (isMicro(trade.symbol) ? COMISIONES.lucid.micro : COMISIONES.lucid.mini) * trade.qty;
+}
+else if (cuenta === 'Tradeify') {
+    // Usa Tradovate: mismas comisiones que Apex en Tradovate
+    comision = (isMicro(trade.symbol) ? COMISIONES.tradeify.micro : COMISIONES.tradeify.mini) * trade.qty;
+}
+else if (cuenta === 'MyFundedFutures') {
+    // Usa Tradovate/NinjaTrader \u2014 similar a Tradovate
+    comision = (isMicro(trade.symbol) ? COMISIONES.mff.micro : COMISIONES.mff.mini) * trade.qty;
+}
+
+return { comision, swaps, total: comision + swaps };
+```
+
+}
+
+// ============================================================
+// BALANCES
+// ============================================================
+function loadBalances() {
+document.getElementById(‘balanceApex’).value       = balances.Apex || 6600;
+document.getElementById(‘balanceFP’).value         = balances[‘FP-Markets-Raw’] || 10000;
+document.getElementById(‘balanceQuantfury’).value  = balances.Quantfury || 5000;
+document.getElementById(‘balanceTakeProfit’).value = balances.TakeProfit || 8000;
+document.getElementById(‘balanceLucid’).value      = balances.Lucid || 8000;
+document.getElementById(‘balanceTradeify’).value   = balances.Tradeify || 50000;
+document.getElementById(‘balanceMFF’).value        = balances.MyFundedFutures || 50000;
+}
+
+function saveBalances() {
+balances = {
+Apex:               parseFloat(document.getElementById(‘balanceApex’).value)||6600,
+‘FP-Markets-Raw’:   parseFloat(document.getElementById(‘balanceFP’).value)||10000,
+Quantfury:          parseFloat(document.getElementById(‘balanceQuantfury’).value)||5000,
+TakeProfit:         parseFloat(document.getElementById(‘balanceTakeProfit’).value)||8000,
+Lucid:              parseFloat(document.getElementById(‘balanceLucid’).value)||8000,
+Tradeify:           parseFloat(document.getElementById(‘balanceTradeify’).value)||50000,
+MyFundedFutures:    parseFloat(document.getElementById(‘balanceMFF’).value)||50000
+};
+saveAllData();
+updateDashboard();
+toast(’\ud83d\udcb0 Saldos guardados’);
+}
+
+function getSaldoInicial() {
+if (!filtroActivo) return Object.values(balances).reduce((a,b)=>a+b,0);
+const cuenta = document.getElementById(‘filterAccount’).value;
+return cuenta !== ‘TODAS’ ? (balances[cuenta]||0) : Object.values(balances).reduce((a,b)=>a+b,0);
+}
+
+// ============================================================
+// OBJETIVOS
+// ============================================================
+function cargarObjetivosCuenta() {
+const c = document.getElementById(‘objetivosCuentaSelect’).value;
+const m = objetivosPorCuenta[c] || {semanal:2000,mensual:8000};
+document.getElementById(‘objetivoSemanalCuenta’).value = m.semanal;
+document.getElementById(‘objetivoMensualCuenta’).value = m.mensual;
+}
+
+function guardarObjetivosCuenta() {
+const c = document.getElementById(‘objetivosCuentaSelect’).value;
+objetivosPorCuenta[c] = {
+semanal: parseFloat(document.getElementById(‘objetivoSemanalCuenta’).value)||2000,
+mensual: parseFloat(document.getElementById(‘objetivoMensualCuenta’).value)||8000
+};
+saveAllData();
+actualizarObjetivos();
+toast(’\u2705 Metas guardadas para ’ + c);
+}
+
+// ============================================================
+// CLEAR
+// ============================================================
+function clearAllData() {
+if (!confirm(’\u00bfBorrar TODOS los datos? Esta acci\u00f3n no se puede deshacer.’)) return;
+trades = []; psychologyData = []; reflexiones = {};
+balances = { Apex:6600,‘FP-Markets-Raw’:10000,Quantfury:5000,TakeProfit:8000,Lucid:8000,Tradeify:50000,MyFundedFutures:50000 };
+objetivosPorCuenta = { Apex:{semanal:2000,mensual:8000},‘FP-Markets-Raw’:{semanal:2000,mensual:8000},Quantfury:{semanal:2000,mensual:8000},TakeProfit:{semanal:2000,mensual:8000},Lucid:{semanal:2000,mensual:8000},Tradeify:{semanal:2000,mensual:8000},MyFundedFutures:{semanal:2000,mensual:8000} };
+saveAllData();
+limpiarFiltros();
+updateDashboard();
+actualizarCalendarioReflexion();
+toast(’\ud83d\uddd1\ufe0f Datos eliminados’);
+}
+
+// ============================================================
+// UI / TABS
+// ============================================================
+function showTab(name) {
+document.querySelectorAll(’.tab’).forEach(t=>t.classList.remove(‘active’));
+document.querySelectorAll(’.panel’).forEach(p=>p.classList.remove(‘active’));
+const tab = document.querySelector(`.tab[onclick="showTab('${name}')"]`);
+if (tab) tab.classList.add(‘active’);
+const panel = document.getElementById(‘panel-’+name);
+if (panel) panel.classList.add(‘active’);
+if (name===‘calendar’) actualizarCalendario();
+if (name===‘predictivo’) actualizarPredictivo();
+if (name===‘temporal’) actualizarHeatmap();
+if (name===‘montecarlo’) ejecutarMonteCarlo();
+if (name===‘objetivos’) actualizarObjetivos();
+if (name===‘manual’) actualizarTablaManual();
+if (name===‘mentoria’) actualizarCalendarioReflexion();
+}
+
+function toggleMobileMenu() {
+document.getElementById(‘mainTabs’).classList.toggle(‘open’);
+}
+
+function updateFileName(input) {
+document.getElementById(‘fileName’).textContent = input.files[0] ? input.files[0].name : ‘Sin archivo’;
+}
+
+// ============================================================
+// FILTROS
+// ============================================================
+function actualizarListaSimbolos() {
+const sel = document.getElementById(‘filterSymbol’);
+const syms = […new Set(trades.map(t=>t.symbol))].sort();
+sel.innerHTML = ‘<option value="TODOS">Todos los s\u00edmbolos</option>’ + syms.map(s=>`<option value="${s}">${s}</option>`).join(’’);
+}
+
+function aplicarFiltros() {
+const cuenta = document.getElementById(‘filterAccount’).value;
+const simbolo = document.getElementById(‘filterSymbol’).value;
+const desde = document.getElementById(‘filterDateFrom’).value;
+const hasta = document.getElementById(‘filterDateTo’).value;
+
+```
+if (cuenta==='TODAS' && simbolo==='TODOS' && !desde && !hasta) {
+    tradesFiltrados = trades; filtroActivo = false;
+    document.getElementById('filterSummary').style.display = 'none';
+} else {
+    tradesFiltrados = trades.filter(t => {
+        let ok = true;
+        if (cuenta!=='TODAS') ok = ok && (t.account===cuenta);
+        if (simbolo!=='TODOS') ok = ok && (t.symbol===simbolo);
+        if (desde||hasta) {
+            const d = t.bought.toISOString().split('T')[0];
+            if (desde) ok = ok && (d >= desde);
+            if (hasta) ok = ok && (d <= hasta);
+        }
+        return ok;
+    });
+    filtroActivo = true;
+    document.getElementById('filterCount').innerHTML = tradesFiltrados.length;
+    document.getElementById('filterAccountBadge').innerHTML = cuenta==='TODAS'?'':cuenta;
+    document.getElementById('filterSymbolBadge').innerHTML = simbolo==='TODOS'?'':simbolo;
+    let fd = '';
+    if (desde&&hasta) fd=`${desde} \u2192 ${hasta}`;
+    else if (desde) fd=`Desde ${desde}`;
+    else if (hasta) fd=`Hasta ${hasta}`;
+    document.getElementById('filterDateBadge').innerHTML = fd;
+    document.getElementById('filterSummary').style.display = 'flex';
+}
+updateDashboard(); actualizarTablaManual();
+```
+
+}
+
+function limpiarFiltros() {
+[‘filterAccount’,‘filterSymbol’].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=el.options[0].value; });
+document.getElementById(‘filterDateFrom’).value=’’;
+document.getElementById(‘filterDateTo’).value=’’;
+tradesFiltrados = trades; filtroActivo = false;
+document.getElementById(‘filterSummary’).style.display = ‘none’;
+updateDashboard(); actualizarTablaManual();
+}
+
+// ============================================================
+// PAGINACI\u00d3N
+// ============================================================
+function cambiarFilasPorPagina() {
+filasPorPagina = parseInt(document.getElementById(‘rowsPerPage’).value)||100;
+paginaActual = 1; actualizarTablaManual();
+}
+function cambiarPagina(d) {
+const total = Math.ceil((filtroActivo?tradesFiltrados:trades).length/filasPorPagina);
+const n = paginaActual+d;
+if (n>=1&&n<=total) { paginaActual=n; actualizarTablaManual(); }
+}
+function irAPagina(p) { paginaActual=p; actualizarTablaManual(); }
+
+// ============================================================
+// TABLA MANUAL
+// ============================================================
+function actualizarTablaManual() {
+const list = filtroActivo ? tradesFiltrados : trades;
+const total = Math.max(1, Math.ceil(list.length/filasPorPagina));
+if (paginaActual>total) paginaActual=total;
+const inicio=(paginaActual-1)*filasPorPagina, fin=Math.min(inicio+filasPorPagina,list.length);
+const page = list.slice(inicio,fin);
+
+```
+let html='';
+page.forEach((t,i) => {
+    const c=calcularCostes(t), net=t.pnl-c.total;
+    html+=`<tr>
+```
+
+<td style="font-family:var(--font-mono);font-size:11px;">${t.timestamp}</td>
+<td><small>${t.account||'Apex'}</small></td>
+<td><strong ondblclick="filtrarPorSimbolo('${t.symbol}')" style="cursor:pointer;" title="Doble click para filtrar">${t.symbol}</strong></td>
+<td>${t.qty}</td>
+<td><select class="inline-select" onchange="actualizarDireccion('${t.timestamp}',this.value)"><option value="LONG" ${t.direction==='LONG'?'selected':''}>\ud83d\udcc8 LONG</option><option value="SHORT" ${t.direction==='SHORT'?'selected':''}>\ud83d\udcc9 SHORT</option></select></td>
+<td style="font-family:var(--font-mono)">$${t.buyPrice.toFixed(2)}</td>
+<td style="font-family:var(--font-mono)">$${t.sellPrice.toFixed(2)}</td>
+<td class="${net>=0?'pos':'neg'}" style="font-family:var(--font-mono);font-weight:700;">$${net.toFixed(2)}</td>
+<td><select class="inline-select" onchange="actualizarSetup('${t.timestamp}',this.value)">${genOpts(SETUP_OPTIONS,t.setup)}</select></td>
+<td><select class="inline-select" onchange="actualizarEmocion('${t.timestamp}',this.value)">${genOpts(EMO_OPTIONS,t.emoState)}</select></td>
+<td><select class="inline-select" onchange="actualizarRegla('${t.timestamp}',this.value)">${genOpts(RULE_OPTIONS,t.ruleBroken)}</select></td>
+<td><button onclick="eliminarOperacion('${t.timestamp}')" style="background:var(--red);color:white;border:none;padding:4px 8px;border-radius:4px;cursor:pointer;font-size:11px;">\ud83d\uddd1\ufe0f</button></td>
+</tr>`;
+    });
+    document.getElementById('allTradesTableBody').innerHTML = html || `<tr><td colspan="12" style="text-align:center;color:var(--text3);padding:20px;">No hay operaciones</td></tr>`;
+    document.getElementById('paginationInfo').innerHTML = `P\u00e1gina ${paginaActual} de ${total} (${list.length} ops)`;
+
+```
+let pag = `<button class="page-btn" onclick="cambiarPagina(-1)" ${paginaActual<=1?'disabled':''}>\u25c0</button>`;
+const s=Math.max(1,paginaActual-2), e=Math.min(total,paginaActual+2);
+if(s>1){pag+=`<button class="page-btn" onclick="irAPagina(1)">1</button>`;if(s>2)pag+=`<span class="page-btn" style="background:transparent;cursor:default">\u2026</span>`;}
+for(let i=s;i<=e;i++) pag+=`<button class="page-btn ${i===paginaActual?'active':''}" onclick="irAPagina(${i})">${i}</button>`;
+if(e<total){if(e<total-1)pag+=`<span class="page-btn" style="background:transparent;cursor:default">\u2026</span>`;pag+=`<button class="page-btn" onclick="irAPagina(${total})">${total}</button>`;}
+pag += `<button class="page-btn" onclick="cambiarPagina(1)" ${paginaActual>=total?'disabled':''}>\u25b6</button>`;
+document.getElementById('pagination').innerHTML = pag;
+```
+
+}
+
+function genOpts(arr, sel) {
+return arr.map(o=>`<option value="${o.value}" ${o.value===sel?'selected':''}>${o.label}</option>`).join(’’);
+}
+
+function filtrarPorSimbolo(sym) {
+document.getElementById(‘filterSymbol’).value = sym;
+aplicarFiltros();
+toast(’\ud83d\udd0d Filtrado por ’ + sym);
+}
+
+async function actualizarDireccion(ts,v){ const t=trades.find(x=>x.timestamp===ts); if(t){t.direction=v;saveAllData();updateDashboard();actualizarTablaManual();}}
+async function actualizarSetup(ts,v){
+const t=trades.find(x=>x.timestamp===ts);
+if(t){t.setup=v;const pi=psychologyData.findIndex(p=>p.timestamp===ts);if(pi>=0)psychologyData[pi].setup=v;else psychologyData.push({timestamp:ts,setup:v,emoState:t.emoState||’’,ruleBroken:t.ruleBroken||’’});saveAllData();updateDashboard();actualizarTablaManual();updateSetupTable();updatePsychologyTables();}
+}
+async function actualizarEmocion(ts,v){
+const t=trades.find(x=>x.timestamp===ts);
+if(t){t.emoState=v;const pi=psychologyData.findIndex(p=>p.timestamp===ts);if(pi>=0)psychologyData[pi].emoState=v;else psychologyData.push({timestamp:ts,setup:t.setup||’’,emoState:v,ruleBroken:t.ruleBroken||’’});saveAllData();}
+}
+async function actualizarRegla(ts,v){
+const t=trades.find(x=>x.timestamp===ts);
+if(t){t.ruleBroken=v;const pi=psychologyData.findIndex(p=>p.timestamp===ts);if(pi>=0)psychologyData[pi].ruleBroken=v;else psychologyData.push({timestamp:ts,setup:t.setup||’’,emoState:t.emoState||’’,ruleBroken:v});saveAllData();}
+}
+async function eliminarOperacion(ts){
+if(!confirm(’\u00bfEliminar esta operaci\u00f3n?’))return;
+trades=trades.filter(t=>t.timestamp!==ts);
+psychologyData=psychologyData.filter(p=>p.timestamp!==ts);
+saveAllData();actualizarListaSimbolos();aplicarFiltros();updateDashboard();actualizarTablaManual();updateSetupTable();updatePsychologyTables();
+}
+
+// ============================================================
+// CARGA CSV
+// ============================================================
+async function loadFile() {
+const file = document.getElementById(‘fileInput’).files[0];
+if (!file) return alert(‘Selecciona un archivo CSV’);
+const reader = new FileReader();
+reader.onload = async e => {
+if (parseCSV(e.target.result)) {
+saveAllData(); actualizarListaSimbolos(); limpiarFiltros(); updateDashboard(); actualizarTablaManual(); showTab(‘dashboard’);
+toast(’\u2705 CSV cargado \u2014 ’ + trades.length + ’ operaciones totales’);
+}
+};
+reader.readAsText(file);
+}
+
+function parseCSV(text) {
+const lines = text.split(’\n’).filter(l=>l.trim());
+if (lines.length<2) { alert(‘CSV vac\u00edo’); return false; }
+const newTrades=[];
+for(let i=1;i<lines.length;i++){
+try{
+const v=lines[i].split(’,’);
+if(v.length<13)continue;
+let pnlStr=v[9].trim().replace(/[$,]/g,’’);
+if(pnlStr.startsWith(’(’)&&pnlStr.endsWith(’)’))pnlStr=’-’+pnlStr.slice(1,-1);
+const pnl=parseFloat(pnlStr); if(isNaN(pnl))continue;
+const bs=v[10]; const [dp,tp]=bs.split(’ ‘);
+const [mo,dy,yr]=dp.split(’/’);
+const bought=new Date(`${yr}-${mo}-${dy}T${tp}`);
+if(isNaN(bought.getTime()))continue;
+const psycho=psychologyData.find(p=>p.timestamp===bs)||{};
+const dir=v[7]<v[8]?‘LONG’:(v[7]>v[8]?‘SHORT’:‘LONG’);
+newTrades.push({
+symbol:v[0].trim(),qty:parseFloat(v[6])||0,buyPrice:parseFloat(v[7])||0,
+sellPrice:parseFloat(v[8])||0,pnl,bought,hour:bought.getHours(),
+weekday:bought.getDay(),month:bought.getMonth(),year:bought.getFullYear(),
+timestamp:bs,direction:dir,emoState:psycho.emoState||’’,
+ruleBroken:psycho.ruleBroken||’’,setup:psycho.setup||’’,
+account:document.getElementById(‘accountSelect’).value,
+overnightNights:v[13]?parseFloat(v[13]):0,swapAmount:v[14]?parseFloat(v[14]):0,
+soldTimestamp:v[11]
+});
+}catch(e){}
+}
+if(newTrades.length===0){alert(‘No se pudo procesar el CSV’);return false;}
+const ex=new Set(trades.map(t=>t.timestamp));
+const uni=newTrades.filter(t=>!ex.has(t.timestamp));
+trades=[…trades,…uni].sort((a,b)=>a.bought-b.bought);
+return true;
+}
+
+// ============================================================
+// EXPORTAR CSV
+// ============================================================
+function exportToCSV() {
+if(!trades.length){toast(‘No hay operaciones’,‘warn’);return;}
+let csv=‘symbol,qty,buyPrice,sellPrice,pnl,comision,swaps,pnlNeto,boughtTimestamp,direction,emoState,ruleBroken,setup,account,overnightNights,swapAmount\n’;
+trades.forEach(t=>{
+const c=calcularCostes(t);
+csv+=`${t.symbol},${t.qty},${t.buyPrice},${t.sellPrice},${t.pnl},${c.comision.toFixed(2)},${c.swaps.toFixed(2)},${(t.pnl-c.total).toFixed(2)},${t.timestamp},${t.direction||'LONG'},${t.emoState||''},${t.ruleBroken||''},${t.setup||''},${t.account||''},${t.overnightNights||0},${t.swapAmount||0}\n`;
+});
+const a=document.createElement(‘a’);
+a.href=URL.createObjectURL(new Blob([csv],{type:‘text/csv’}));
+a.download=`trades_${new Date().toISOString().slice(0,10)}.csv`;
+a.click();
+toast(’\ud83d\udcbe CSV exportado’);
+}
+
+// ============================================================
+// EXPORTAR EXCEL (SheetJS)
+// ============================================================
+function exportToExcel() {
+if(!trades.length){toast(‘No hay operaciones’,‘warn’);return;}
+try {
+const wb = XLSX.utils.book_new();
+
+```
+    // Hoja 1 \u2014 Todas las operaciones
+    const rowsOps = trades.map(t=>{
+        const c=calcularCostes(t);
+        return {
+            Fecha: t.timestamp,
+            Cuenta: t.account||'',
+            S\u00edmbolo: t.symbol,
+            Cantidad: t.qty,
+            Direcci\u00f3n: t.direction||'LONG',
+            'Precio Entrada': t.buyPrice,
+            'Precio Salida': t.sellPrice,
+            'PnL Bruto': parseFloat(t.pnl.toFixed(2)),
+            'Comisi\u00f3n': parseFloat(c.comision.toFixed(2)),
+            'Swaps': parseFloat(c.swaps.toFixed(2)),
+            'PnL Neto': parseFloat((t.pnl-c.total).toFixed(2)),
+            Setup: t.setup||'',
+            Emoci\u00f3n: t.emoState||'',
+            'Regla rota': t.ruleBroken||''
+        };
+    });
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rowsOps), 'Operaciones');
+
+    // Hoja 2 \u2014 Resumen por cuenta
+    const cuentas = ['Apex','FP-Markets-Raw','Quantfury','TakeProfit','Lucid','Tradeify','MyFundedFutures'];
+    const resumen = cuentas.map(c=>{
+        const ct = trades.filter(t=>t.account===c);
+        const pnl = ct.reduce((s,t)=>{const co=calcularCostes(t);return s+(t.pnl-co.total);},0);
+        const wins = ct.filter(t=>{const co=calcularCostes(t);return(t.pnl-co.total)>0;}).length;
+        return { Cuenta:c, 'N\u00b0 Trades':ct.length, 'Winrate %': ct.length?(wins/ct.length*100).toFixed(1):0, 'PnL Neto':parseFloat(pnl.toFixed(2)), 'Saldo inicial':balances[c]||0, 'Saldo final':parseFloat(((balances[c]||0)+pnl).toFixed(2)) };
+    });
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(resumen), 'Por Cuenta');
+
+    // Hoja 3 \u2014 Por mes
+    const meses = {};
+    trades.forEach(t=>{
+        const k=`${t.year}-${String(t.month+1).padStart(2,'0')}`;
+        if(!meses[k]) meses[k]={Mes:k,Trades:0,Wins:0,'PnL Neto':0};
+        const c=calcularCostes(t), net=t.pnl-c.total;
+        meses[k].Trades++; meses[k]['PnL Neto']+=net; if(net>0)meses[k].Wins++;
+    });
+    const rowsMes=Object.values(meses).sort((a,b)=>a.Mes.localeCompare(b.Mes));
+    rowsMes.forEach(r=>{r['PnL Neto']=parseFloat(r['PnL Neto'].toFixed(2));r['Winrate %']=r.Trades?(r.Wins/r.Trades*100).toFixed(1):0;});
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rowsMes), 'Por Mes');
+
+    XLSX.writeFile(wb, `trading_journal_${new Date().toISOString().slice(0,10)}.xlsx`);
+    toast('\ud83d\udcca Excel exportado con 3 hojas');
+} catch(e) {
+    console.error(e);
+    toast('\u274c Error al exportar Excel. Recarga la p\u00e1gina.','err');
+}
+```
+
+}
+
+// ============================================================
+// A\u00d1ADIR MANUAL
+// ============================================================
+async function addManualTrade() {
+const symbol=document.getElementById(‘manualSymbol’).value.trim();
+const qty=parseFloat(document.getElementById(‘manualQty’).value);
+const bp=parseFloat(document.getElementById(‘manualBuyPrice’).value);
+const sp=parseFloat(document.getElementById(‘manualSellPrice’).value);
+const dir=document.getElementById(‘manualDirection’).value;
+const setup=document.getElementById(‘manualSetup’).value;
+const emo=document.getElementById(‘manualEmotion’).value;
+const rule=document.getElementById(‘manualRule’).value;
+const on=parseInt(document.getElementById(‘overnightNights’).value)||0;
+const sw=parseFloat(document.getElementById(‘swapAmount’).value)||0;
+const ds=document.getElementById(‘manualDate’).value;
+const acct=document.getElementById(‘accountSelect’).value;
+
+```
+if(!symbol||!qty||!bp||!sp){toast('Completa s\u00edmbolo, cantidad y precios','warn');return;}
+
+const pnl = dir==='LONG' ? (sp-bp)*qty : (bp-sp)*qty;
+let bought=new Date();
+if(ds){
+    const [dp,tp]=ds.split(' ');
+    if(dp&&tp){const[m,d,y]=dp.split('/');bought=new Date(`${y}-${m}-${d}T${tp}:00`);}
+}
+const ts=`${String(bought.getMonth()+1).padStart(2,'0')}/${String(bought.getDate()).padStart(2,'0')}/${bought.getFullYear()} ${String(bought.getHours()).padStart(2,'0')}:${String(bought.getMinutes()).padStart(2,'0')}:00`;
+const nt={symbol,qty,buyPrice:bp,sellPrice:sp,pnl,bought,hour:bought.getHours(),weekday:bought.getDay(),month:bought.getMonth(),year:bought.getFullYear(),timestamp:ts,direction:dir,setup,emoState:emo,ruleBroken:rule,account:acct,overnightNights:on,swapAmount:sw,soldTimestamp:null};
+if(setup||emo||rule) psychologyData.push({timestamp:ts,setup:setup||'',emoState:emo||'',ruleBroken:rule||''});
+trades.push(nt);
+trades.sort((a,b)=>a.bought-b.bought);
+saveAllData();actualizarListaSimbolos();limpiarFiltros();updateDashboard();actualizarTablaManual();
+toast('\u2705 Operaci\u00f3n a\u00f1adida');
+```
+
+}
+
+// ============================================================
+// PSICOLOG\u00cdA / SETUP SAVE
+// ============================================================
+async function savePsychology() {
+if(!trades.length){toast(‘Primero carga operaciones’,‘warn’);return;}
+const lt=trades[trades.length-1];
+lt.emoState=document.getElementById(‘emoSelect’).value;
+lt.ruleBroken=document.getElementById(‘ruleSelect’).value;
+lt.setup=document.getElementById(‘psychologySetup’).value;
+psychologyData.push({timestamp:lt.timestamp,emoState:lt.emoState,ruleBroken:lt.ruleBroken,setup:lt.setup});
+saveAllData();toast(’\u2705 Psicolog\u00eda guardada’);updateDashboard();actualizarTablaManual();
+}
+
+async function saveSetupFromSelect() {
+if(!trades.length){toast(‘Primero carga operaciones’,‘warn’);return;}
+const setup=document.getElementById(‘setupSelect’).value;
+if(!setup){toast(‘Selecciona un setup’,‘warn’);return;}
+const lt=trades[trades.length-1]; lt.setup=setup;
+const pi=psychologyData.findIndex(p=>p.timestamp===lt.timestamp);
+if(pi>=0)psychologyData[pi].setup=setup; else psychologyData.push({timestamp:lt.timestamp,setup,emoState:’’,ruleBroken:’’});
+saveAllData();toast(’\u2705 Setup guardado: ’+setup);updateDashboard();actualizarTablaManual();
+}
+
+// ============================================================
+// M\u00c9TRICAS
+// ============================================================
+function calculateMetrics() {
+const list = filtroActivo ? tradesFiltrados : trades;
+if(!list.length) return null;
+const tc = list.map(t=>{ const c=calcularCostes(t); return {…t,pnlNeto:t.pnl-c.total,comision:c.comision,swaps:c.swaps,costesTotal:c.total}; });
+const total=tc.length, wins=tc.filter(t=>t.pnlNeto>0).length, losses=tc.filter(t=>t.pnlNeto<0).length;
+const winrate=wins/total, totalPnL=tc.reduce((s,t)=>s+t.pnlNeto,0), expectancy=totalPnL/total;
+const gp=tc.filter(t=>t.pnlNeto>0).reduce((s,t)=>s+t.pnlNeto,0);
+const gl=Math.abs(tc.filter(t=>t.pnlNeto<0).reduce((s,t)=>s+t.pnlNeto,0));
+const pf=gl===0?(gp>0?Infinity:0):gp/gl;
+let eq=0,pk=-Infinity,maxDD=0;
+const eqC=[],ddC=[];
+tc.forEach(t=>{ eq+=t.pnlNeto; eqC.push(eq); if(eq>pk)pk=eq; const d=pk-eq; ddC.push(d); if(d>maxDD)maxDD=d; });
+const ret=tc.map(t=>t.pnlNeto/100), avgR=ret.reduce((a,b)=>a+b,0)/ret.length;
+const sd=Math.sqrt(ret.reduce((s,r)=>s+Math.pow(r-avgR,2),0)/ret.length);
+const sharpe=sd===0?0:(avgR/sd)*Math.sqrt(252);
+const comT=tc.reduce((s,t)=>s+t.comision,0), swT=tc.reduce((s,t)=>s+t.swaps,0);
+const maxWin=Math.max(…tc.map(t=>t.pnlNeto)), maxLoss=Math.min(…tc.map(t=>t.pnlNeto));
+const avgWin=wins>0?gp/wins:0, avgLoss=losses>0?gl/losses:0;
+const rGL=avgLoss>0?avgWin/avgLoss:0;
+let rAct=0,mRG=0,mRP=0,rTipo=null;
+tc.forEach(t=>{ const eg=t.pnlNeto>0; if(rTipo===null){rTipo=eg?‘win’:‘loss’;rAct=1;} else if((rTipo===‘win’&&eg)||(rTipo===‘loss’&&!eg)){rAct++;} else{if(rTipo===‘win’&&rAct>mRG)mRG=rAct;else if(rTipo===‘loss’&&rAct>mRP)mRP=rAct;rTipo=eg?‘win’:‘loss’;rAct=1;} });
+if(rTipo===‘win’&&rAct>mRG)mRG=rAct; if(rTipo===‘loss’&&rAct>mRP)mRP=rAct;
+const ps=[…tc.map(t=>t.pnlNeto)].sort((a,b)=>a-b);
+const p10=ps[Math.floor(ps.length*.1)]||0, p90=ps[Math.floor(ps.length*.9)]||0;
+return {total,wins,losses,winrate,totalPnL,expectancy,profitFactor:pf,maxDD,sharpe,equityCurve:eqC,ddCurve:ddC,comisionesTotales:comT,swapsTotales:swT,maxWin,maxLoss,avgWin,avgLoss,ratioAvgGananciaPerdida:rGL,maxRachaGanadora:mRG,maxRachaPerdedora:mRP,p10,p90,avgR};
+}
+
+function generarContextoMetricas(m) {
+let c=’<strong>\ud83d\udcca INTERPRETACI\u00d3N:</strong><br><br>’;
+c+=`<strong>Sharpe:</strong> ${m.sharpe>=2?'\u2705 Excelente':m.sharpe>=1?'\ud83d\udc4d Bueno':m.sharpe>=0.5?'\u26a0\ufe0f Aceptable':'\u274c Bajo'} (${m.sharpe.toFixed(2)} \u2014 ideal >1)<br>`;
+c+=`<strong>Profit Factor:</strong> ${m.profitFactor>=2?'\u2705 Muy saludable':m.profitFactor>=1.5?'\ud83d\udc4d Bueno':m.profitFactor>=1?'\u26a0\ufe0f Ajustado':'\u274c Negativo'} (${m.profitFactor.toFixed(2)} \u2014 ideal >1.5)<br>`;
+c+=`<strong>Expectancy:</strong> ${m.expectancy>=50?'\u2705 Excelente':m.expectancy>=20?'\ud83d\udc4d Buena':m.expectancy>=0?'\u26a0\ufe0f Positiva pero baja':'\u274c Negativa'} ($${m.expectancy.toFixed(2)})<br>`;
+c+=`<strong>Ratio W/L:</strong> ${m.ratioAvgGananciaPerdida>=2?'\u2705 Excelente':m.ratioAvgGananciaPerdida>=1.5?'\ud83d\udc4d Bueno':m.ratioAvgGananciaPerdida>=1?'\u26a0\ufe0f Aceptable':'\u274c Mejorable'} (${m.ratioAvgGananciaPerdida.toFixed(2)})<br>`;
+c+=`<strong>Percentil 10:</strong> peores trades pierden >$${Math.abs(m.p10).toFixed(2)} \u00b7 <strong>P90:</strong> mejores ganan >$${m.p90.toFixed(2)}`;
+return c;
+}
+
+// ============================================================
+// UPDATE DASHBOARD
+// ============================================================
+function updateDashboard() {
+const list = filtroActivo ? tradesFiltrados : trades;
+[‘saldoApexDisplay’,‘saldoFPDisplay’,‘saldoQuantfuryDisplay’,‘saldoTakeProfitDisplay’,‘saldoLucidDisplay’,‘saldoTradeifyDisplay’,‘saldoMFFDisplay’].forEach((id,i)=>{
+const keys=[‘Apex’,‘FP-Markets-Raw’,‘Quantfury’,‘TakeProfit’,‘Lucid’,‘Tradeify’,‘MyFundedFutures’];
+const el=document.getElementById(id);
+if(el) el.innerHTML=’$’+(balances[keys[i]]||0).toLocaleString();
+});
+if(!list.length){
+document.getElementById(‘statsDashboard’).innerHTML=’<div class="stat-card"><div class="stat-title">Sin datos</div><div class="stat-value">\u2014</div><div class="stat-sub">Importa un CSV o a\u00f1ade operaciones</div></div>’;
+return;
+}
+const m=calculateMetrics(); if(!m)return;
+const si=getSaldoInicial(), ef=si+m.totalPnL;
+document.getElementById(‘statsDashboard’).innerHTML=`
+
+<div class="stat-card"><div class="stat-title">Total Trades</div><div class="stat-value">${m.total}</div></div>
+<div class="stat-card"><div class="stat-title">Winrate Neto</div><div class="stat-value ${m.winrate>=0.5?'pos':'neg'}">${(m.winrate*100).toFixed(1)}%</div></div>
+<div class="stat-card"><div class="stat-title">PnL Neto Total</div><div class="stat-value ${m.totalPnL>=0?'pos':'neg'}">$${m.totalPnL.toFixed(2)}</div></div>
+<div class="stat-card"><div class="stat-title">Profit Factor</div><div class="stat-value ${m.profitFactor>=1.5?'pos':m.profitFactor>=1?'warn':'neg'}">${m.profitFactor.toFixed(2)}</div></div>
+<div class="stat-card"><div class="stat-title">Saldo Final (est.)</div><div class="stat-value pos">$${ef.toFixed(2)}</div></div>
+<div class="stat-card"><div class="stat-title">Max Drawdown</div><div class="stat-value neg">$${m.maxDD.toFixed(2)}</div></div>`;
+    document.getElementById('metricsStats').innerHTML=`
+<div class="stat-card"><div class="stat-title">Sharpe Ratio</div><div class="stat-value ${m.sharpe>=1?'pos':m.sharpe>=0.5?'warn':'neg'}">${m.sharpe.toFixed(2)}</div></div>
+<div class="stat-card"><div class="stat-title">Comisiones</div><div class="stat-value neg">$${m.comisionesTotales.toFixed(2)}</div></div>
+<div class="stat-card"><div class="stat-title">Swaps</div><div class="stat-value neg">$${m.swapsTotales.toFixed(2)}</div></div>
+<div class="stat-card"><div class="stat-title">Mayor ganancia</div><div class="stat-value pos">$${m.maxWin.toFixed(2)}</div></div>
+<div class="stat-card"><div class="stat-title">Mayor p\u00e9rdida</div><div class="stat-value neg">$${Math.abs(m.maxLoss).toFixed(2)}</div></div>
+<div class="stat-card"><div class="stat-title">Avg R</div><div class="stat-value ${m.avgR>0?'pos':'neg'}">${m.avgR.toFixed(2)}R</div></div>`;
+    updateInstrumentTable(); updateDetailedMetrics(m); updateTemporalTables(); updatePsychologyTables(); updateExecutionMetrics(m); updateSetupTable();
+    updateEquityChart(si,m.equityCurve); updateDrawdownChart(m.ddCurve);
+    document.getElementById('metricsContext').innerHTML=generarContextoMetricas(m);
+}
+
+// ============================================================
+// SETUPS TABLE
+// ============================================================
+function updateSetupTable() {
+const list=filtroActivo?tradesFiltrados:trades;
+const s={};
+list.forEach(t=>{ if(!t.setup)return; const c=calcularCostes(t),net=t.pnl-c.total; if(!s[t.setup])s[t.setup]={trades:0,pnl:0,wins:0}; s[t.setup].trades++;s[t.setup].pnl+=net; if(net>0)s[t.setup].wins++; });
+const body=document.querySelector(’#setupTable tbody’);
+let h=’’;
+for(const k in s){ const wr=(s[k].wins/s[k].trades*100).toFixed(1),exp=s[k].pnl/s[k].trades; h+=`<tr><td>${k}</td><td>${s[k].trades}</td><td>${wr}%</td><td class="${s[k].pnl>=0?'pos':'neg'}">$${s[k].pnl.toFixed(2)}</td><td class="${exp>=0?'pos':'neg'}">$${exp.toFixed(2)}</td></tr>`; }
+if(body) body.innerHTML=h||’<tr><td colspan="5" style="text-align:center;color:var(--text3)">Sin setups</td></tr>’;
+const ctx=document.getElementById(‘setupChart’).getContext(‘2d’);
+if(window._setupChart)window._setupChart.destroy();
+window._setupChart=new Chart(ctx,{type:‘doughnut’,data:{labels:Object.keys(s),datasets:[{data:Object.values(s).map(x=>x.trades),backgroundColor:[’#00ff9d’,’#58a6ff’,’#f0883e’,’#bc8cff’,’#e3b341’],borderWidth:2,borderColor:’#0d1117’}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:’#8b949e’,font:{family:‘IBM Plex Mono’,size:11}}}}}});
+}
+
+// ============================================================
+// INSTRUMENT TABLE
+// ============================================================
+function updateInstrumentTable() {
+const list=filtroActivo?tradesFiltrados:trades;
+const inst={};
+list.forEach(t=>{ const c=calcularCostes(t),net=t.pnl-c.total; if(!inst[t.symbol])inst[t.symbol]={trades:0,pnl:0,wins:0}; inst[t.symbol].trades++;inst[t.symbol].pnl+=net; if(net>0)inst[t.symbol].wins++; });
+let h=’<tr><th>S\u00edmbolo</th><th>Trades</th><th>Winrate</th><th>PnL Neto</th></tr>’;
+Object.keys(inst).forEach(sym=>{ const wr=(inst[sym].wins/inst[sym].trades*100).toFixed(1); h+=`<tr><td>${sym}</td><td>${inst[sym].trades}</td><td>${wr}%</td><td class="${inst[sym].pnl>=0?'pos':'neg'}">$${inst[sym].pnl.toFixed(2)}</td></tr>`; });
+document.getElementById(‘instrumentTable’).innerHTML=h;
+}
+
+function updateDetailedMetrics(m) {
+document.getElementById(‘detailedMetrics’).innerHTML=`
+
+<tr><th>M\u00e9trica</th><th>Valor</th></tr>
+<tr><td>Wins / Losses</td><td>${m.wins} / ${m.losses}</td></tr>
+<tr><td>Expectancy</td><td class="${m.expectancy>=0?'pos':'neg'}">$${m.expectancy.toFixed(2)}</td></tr>
+<tr><td>Prom. Win / Loss</td><td class="pos">$${m.avgWin.toFixed(2)}</td></tr>
+<tr><td>Ratio W/L promedio</td><td>${m.ratioAvgGananciaPerdida.toFixed(2)}</td></tr>
+<tr><td>Avg R</td><td class="${m.avgR>0?'pos':'neg'}">${m.avgR.toFixed(2)}R</td></tr>
+<tr><td>M\u00e1x racha ganadora</td><td class="pos">${m.maxRachaGanadora}</td></tr>
+<tr><td>M\u00e1x racha perdedora</td><td class="neg">${m.maxRachaPerdedora}</td></tr>
+<tr><td>P10 (worst 10%)</td><td class="neg">-$${Math.abs(m.p10).toFixed(2)}</td></tr>
+<tr><td>P90 (best 10%)</td><td class="pos">$${m.p90.toFixed(2)}</td></tr>`;
+}
+
+// ============================================================
+// TEMPORAL
+// ============================================================
+function updateTemporalTables() {
+const list=filtroActivo?tradesFiltrados:trades;
+const wd=[‘Dom’,‘Lun’,‘Mar’,‘Mi\u00e9’,‘Jue’,‘Vie’,‘S\u00e1b’];
+const mn=[‘Ene’,‘Feb’,‘Mar’,‘Abr’,‘May’,‘Jun’,‘Jul’,‘Ago’,‘Sep’,‘Oct’,‘Nov’,‘Dic’];
+function statsRow(stats,keyFn,labelFn,keys){
+list.forEach(t=>{ const c=calcularCostes(t),net=t.pnl-c.total,k=keyFn(t); if(!stats[k])stats[k]={trades:0,pnl:0,wins:0}; stats[k].trades++;stats[k].pnl+=net;if(net>0)stats[k].wins++; });
+let h=’<tr><th>Per\u00edodo</th><th>Trades</th><th>Winrate</th><th>PnL Neto</th></tr>’;
+keys.forEach(k=>{ if(!stats[k]||!stats[k].trades)return; const wr=(stats[k].wins/stats[k].trades*100).toFixed(1); h+=`<tr><td>${labelFn(k)}</td><td>${stats[k].trades}</td><td>${wr}%</td><td class="${stats[k].pnl>=0?'pos':'neg'}">$${stats[k].pnl.toFixed(2)}</td></tr>`; });
+return h;
+}
+const wds={}; document.getElementById(‘weekdayTable’).innerHTML=statsRow(wds,t=>t.weekday,k=>wd[k],[1,2,3,4,5]);
+const hs={}; document.getElementById(‘hourTable’).innerHTML=statsRow(hs,t=>t.hour,k=>k+’:00’,[…Array(24).keys()]);
+const ws={}; document.getElementById(‘weekTable’).innerHTML=statsRow(ws,t=>Math.ceil(t.bought.getDate()/7),k=>‘Semana ‘+k,[1,2,3,4,5]);
+const ms={};
+list.forEach(t=>{ const k=`${t.year}-${t.month}`,c=calcularCostes(t),net=t.pnl-c.total; if(!ms[k])ms[k]={trades:0,pnl:0,wins:0,y:t.year,m:t.month}; ms[k].trades++;ms[k].pnl+=net;if(net>0)ms[k].wins++; });
+let mh=’<tr><th>Mes</th><th>Trades</th><th>Winrate</th><th>PnL Neto</th></tr>’;
+Object.keys(ms).sort().forEach(k=>{ const wr=(ms[k].wins/ms[k].trades*100).toFixed(1); mh+=`<tr><td>${mn[ms[k].m]} ${ms[k].y}</td><td>${ms[k].trades}</td><td>${wr}%</td><td class="${ms[k].pnl>=0?'pos':'neg'}">$${ms[k].pnl.toFixed(2)}</td></tr>`; });
+document.getElementById(‘monthTable’).innerHTML=mh;
+}
+
+// ============================================================
+// HEATMAP
+// ============================================================
+function actualizarHeatmap() {
+const list=filtroActivo?tradesFiltrados:trades;
+const hs={};
+for(let h=0;h<24;h++)hs[h]={trades:0,pnl:0};
+list.forEach(t=>{ const c=calcularCostes(t),net=t.pnl-c.total; hs[t.hour].trades++;hs[t.hour].pnl+=net; });
+let html=’’,labH=’’;
+for(let h=0;h<24;h++){
+if(!hs[h].trades){html+=`<div class="heatmap-cell" style="background:var(--bg3);" title="${h}:00 \u2014 sin datos"></div>`;labH+=`<div class="heatmap-label">${h}</div>`;continue;}
+const avg=hs[h].pnl/hs[h].trades,intensity=Math.min(200,Math.abs(avg)/5);
+const color=avg>=0?`rgba(0,${Math.min(255,100+intensity)},100,0.8)`:`rgba(${Math.min(255,100+intensity)},50,50,0.8)`;
+html+=`<div class="heatmap-cell" style="background:${color};" title="${h}:00 \u00b7 avg $${avg.toFixed(2)} (${hs[h].trades} trades)"></div>`;
+labH+=`<div class="heatmap-label">${h}</div>`;
+}
+document.getElementById(‘heatmapGrid’).innerHTML=html;
+document.getElementById(‘heatmapLabels’).innerHTML=labH;
+}
+
+// ============================================================
+// PREDICTIVO
+// ============================================================
+function actualizarPredictivo() {
+const list=filtroActivo?tradesFiltrados:trades;
+if(list.length<10){
+[‘predictiveMorning’,‘predictiveStreak’,‘predictiveMonday’,‘predictiveSession’].forEach(id=>document.getElementById(id).innerHTML=‘Datos insuficientes’);
+return;
+}
+const net=t=>{const c=calcularCostes(t);return t.pnl-c.total;};
+// Antes 10am
+const am=list.filter(t=>t.hour<10), wam=am.filter(t=>net(t)>0).length;
+const pam=am.length?(wam/am.length*100).toFixed(1):0;
+document.getElementById(‘predictiveMorning’).innerHTML=`${pam}% winrate`;
+document.getElementById(‘predictiveMorningContext’).innerHTML=am.length?`${am.length} trades analizados. ${pam>60?'\u2705 Mejor antes de las 10am.':pam>45?'\u26a0\ufe0f Resultados mixtos.':'\u274c Mejor esperar despu\u00e9s de las 10am.'}`:’-’;
+// 3 p\u00e9rdidas seguidas
+let s3=0,as3=0,cl=0;
+for(let i=0;i<list.length;i++){ if(net(list[i])<0){cl++;if(cl===3&&i<list.length-1){s3++;if(net(list[i+1])>0)as3++;}}else cl=0; }
+document.getElementById(‘predictiveStreak’).innerHTML=s3?`${(as3/s3*100).toFixed(1)}% winrate tras 3 p\u00e9rd.`:‘Nunca 3 p\u00e9rd. seguidas’;
+document.getElementById(‘predictiveStreakContext’).innerHTML=s3?`Ocurri\u00f3 ${s3} veces. ${as3/s3>0.5?'\u2705 Buena recuperaci\u00f3n.':'\u26a0\ufe0f Mejor parar tras 3 p\u00e9rdidas.'}`:’-’;
+// Lunes tarde
+const lt=list.filter(t=>t.weekday===1&&t.hour>=12&&t.hour<=18);
+const avgL=lt.length?lt.reduce((s,t)=>s+net(t),0)/lt.length:0;
+const avgG=list.length?list.reduce((s,t)=>s+net(t),0)/list.length:0;
+const diff=avgG?((avgL-avgG)/Math.abs(avgG)*100).toFixed(1):0;
+document.getElementById(‘predictiveMonday’).innerHTML=lt.length?`${diff>0?'+':''}${diff}% vs media`:‘Sin datos’;
+document.getElementById(‘predictiveMondayContext’).innerHTML=lt.length?`${diff>20?'\u2705 Excelente momento.':diff>0?'\ud83d\udc4d Ligeramente mejor.':'\u274c Evitar lunes tarde.'}`:’-’;
+// Mejor sesi\u00f3n
+const ses={‘Madrugada 0-6h’:{t:0,p:0},‘Ma\u00f1ana 6-12h’:{t:0,p:0},‘Tarde 12-18h’:{t:0,p:0},‘Noche 18-24h’:{t:0,p:0}};
+list.forEach(t=>{ const n=net(t),h=t.hour; if(h<6){ses[‘Madrugada 0-6h’].t++;ses[‘Madrugada 0-6h’].p+=n;}else if(h<12){ses[‘Ma\u00f1ana 6-12h’].t++;ses[‘Ma\u00f1ana 6-12h’].p+=n;}else if(h<18){ses[‘Tarde 12-18h’].t++;ses[‘Tarde 12-18h’].p+=n;}else{ses[‘Noche 18-24h’].t++;ses[‘Noche 18-24h’].p+=n;} });
+let best=’’,bv=-Infinity;
+for(const k in ses){if(ses[k].t>=3){const a=ses[k].p/ses[k].t;if(a>bv){bv=a;best=k;}}}
+document.getElementById(‘predictiveSession’).innerHTML=best||‘Sin datos’;
+document.getElementById(‘predictiveSessionContext’).innerHTML=best?`Promedio $${bv.toFixed(2)}/trade. Enf\u00f3cate en esta franja.`:’-’;
+// Tablas
+const hs={};for(let h=0;h<24;h++)hs[h]={t:0,p:0,w:0};
+list.forEach(t=>{ const n=net(t);hs[t.hour].t++;hs[t.hour].p+=n;if(n>0)hs[t.hour].w++; });
+let hh=’<tr><th>Hora</th><th>Winrate</th><th>Promedio</th></tr>’;
+for(let h=0;h<24;h++){if(hs[h].t<3)continue;const wr=(hs[h].w/hs[h].t*100).toFixed(1),avg=hs[h].p/hs[h].t;hh+=`<tr><td>${h}:00</td><td>${wr}%</td><td class="${avg>=0?'pos':'neg'}">$${avg.toFixed(2)}</td></tr>`;}
+document.getElementById(‘predictiveHourTable’).innerHTML=hh;
+const dn=[‘Dom’,‘Lun’,‘Mar’,‘Mi\u00e9’,‘Jue’,‘Vie’,‘S\u00e1b’],ds={};
+for(let d=0;d<7;d++)ds[d]={t:0,p:0,w:0};
+list.forEach(t=>{const n=net(t);ds[t.weekday].t++;ds[t.weekday].p+=n;if(n>0)ds[t.weekday].w++;});
+let dh=’<tr><th>D\u00eda</th><th>Winrate</th><th>Promedio</th></tr>’;
+for(let d=1;d<=5;d++){if(ds[d].t<3)continue;const wr=(ds[d].w/ds[d].t*100).toFixed(1),avg=ds[d].p/ds[d].t;dh+=`<tr><td>${dn[d]}</td><td>${wr}%</td><td class="${avg>=0?'pos':'neg'}">$${avg.toFixed(2)}</td></tr>`;}
+document.getElementById(‘predictiveDayTable’).innerHTML=dh;
+let str=’<tr><th>Racha previa</th><th>Winrate siguiente</th></tr>’;
+const prev={win:{w:0,t:0},loss:{w:0,t:0}};
+for(let i=1;i<list.length;i++){const pr=net(list[i-1])>0?‘win’:‘loss’;prev[pr].t++;if(net(list[i])>0)prev[pr].w++;}
+if(prev.win.t)str+=`<tr><td>Tras ganadora</td><td>${(prev.win.w/prev.win.t*100).toFixed(1)}%</td></tr>`;
+if(prev.loss.t)str+=`<tr><td>Tras perdedora</td><td>${(prev.loss.w/prev.loss.t*100).toFixed(1)}%</td></tr>`;
+document.getElementById(‘predictiveStreakTable’).innerHTML=str;
+}
+
+// ============================================================
+// MONTECARLO
+// ============================================================
+function ejecutarMonteCarlo() {
+const list=filtroActivo?tradesFiltrados:trades;
+if(list.length<10){document.getElementById(‘monteCarloStats’).innerHTML=’<div class="stat-card"><div class="stat-title">Sin datos</div><div class="stat-value">Min 10 ops</div></div>’;return;}
+const ns=parseInt(document.getElementById(‘monteCarlosims’).value)||1000;
+const nt=parseInt(document.getElementById(‘monteCarlotrades’).value)||252;
+const pnls=list.map(t=>{const c=calcularCostes(t);return t.pnl-c.total;});
+const res=[],dds=[];
+for(let s=0;s<ns;s++){let eq=0,pk=0,md=0;for(let i=0;i<nt;i++){eq+=pnls[Math.floor(Math.random()*pnls.length)];if(eq>pk)pk=eq;const d=pk-eq;if(d>md)md=d;}res.push(eq);dds.push(md);}
+res.sort((a,b)=>a-b);dds.sort((a,b)=>a-b);
+const p5=res[Math.floor(res.length*.05)],p50=res[Math.floor(res.length*.5)],p95=res[Math.floor(res.length*.95)],dd95=dds[Math.floor(dds.length*.95)];
+document.getElementById(‘monteCarloStats’).innerHTML=`
+
+<div class="stat-card"><div class="stat-title">Peor caso 5%</div><div class="stat-value neg">$${p5.toFixed(0)}</div></div>
+<div class="stat-card"><div class="stat-title">Mediana</div><div class="stat-value">$${p50.toFixed(0)}</div></div>
+<div class="stat-card"><div class="stat-title">Mejor caso 95%</div><div class="stat-value pos">$${p95.toFixed(0)}</div></div>
+<div class="stat-card"><div class="stat-title">DD m\u00e1x 95%</div><div class="stat-value neg">$${dd95.toFixed(0)}</div></div>`;
+    const si=getSaldoInicial();
+    document.getElementById('monteCarloTexto').innerHTML=`<strong>\ud83d\udcca RESULTADOS en ${ns} simulaciones de ${nt} trades:</strong><br>\u2022 Peor escenario (5%): p\u00e9rdida de <strong>$${Math.abs(p5).toFixed(0)}</strong> \u00b7 Saldo: $${(si+p5).toFixed(0)}<br>\u2022 Caso m\u00e1s probable: <strong>$${p50.toFixed(0)}</strong> \u00b7 Saldo: $${(si+p50).toFixed(0)}<br>\u2022 Mejor escenario (95%): <strong>$${p95.toFixed(0)}</strong> \u00b7 Saldo: $${(si+p95).toFixed(0)}<br>\u2022 Drawdown m\u00e1ximo probable (95%): <strong>$${dd95.toFixed(0)}</strong>`;
+    const min=Math.min(...res),max=Math.max(...res),step=(max-min)/20,bins={};
+    res.forEach(v=>{const b=Math.floor((v-min)/step)*step+min;bins[b.toFixed(0)]=(bins[b.toFixed(0)]||0)+1;});
+    const ctx=document.getElementById('monteCarloChart').getContext('2d');
+    if(window._mcChart)window._mcChart.destroy();
+    window._mcChart=new Chart(ctx,{type:'bar',data:{labels:Object.keys(bins),datasets:[{label:'Frecuencia',data:Object.values(bins),backgroundColor:'rgba(88,166,255,0.7)',borderColor:'#58a6ff',borderWidth:1}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#8b949e'}}},scales:{x:{ticks:{color:'#6e7681',font:{size:9}}},y:{ticks:{color:'#6e7681'}}}}});
+}
+
+// ============================================================
+// OBJETIVOS
+// ============================================================
+function actualizarObjetivos() {
+const hoy=new Date();
+const iS=new Date(hoy);iS.setDate(hoy.getDate()-hoy.getDay()+1);
+const iM=new Date(hoy.getFullYear(),hoy.getMonth(),1);
+const cuentas=[‘Apex’,‘FP-Markets-Raw’,‘Quantfury’,‘TakeProfit’,‘Lucid’,‘Tradeify’,‘MyFundedFutures’];
+let rh=’<tr><th>Cuenta</th><th>Meta Sem.</th><th>Meta Men.</th><th>Progreso Semana</th><th>Progreso Mes</th></tr>’;
+cuentas.forEach(c=>{
+const m=objetivosPorCuenta[c]||{semanal:2000,mensual:8000};
+const ps=trades.filter(t=>t.account===c&&t.bought>=iS).reduce((s,t)=>{const co=calcularCostes(t);return s+(t.pnl-co.total);},0);
+const pm=trades.filter(t=>t.account===c&&t.bought>=iM).reduce((s,t)=>{const co=calcularCostes(t);return s+(t.pnl-co.total);},0);
+rh+=`<tr><td>${c}</td><td>$${m.semanal}</td><td>$${m.mensual}</td><td class="${ps>=m.semanal?'pos':ps>0?'warn':'neg'}">$${ps.toFixed(2)} (${(ps/m.semanal*100).toFixed(0)}%)</td><td class="${pm>=m.mensual?'pos':pm>0?'warn':'neg'}">$${pm.toFixed(2)} (${(pm/m.mensual*100).toFixed(0)}%)</td></tr>`;
+});
+document.getElementById(‘objetivosResumenTable’).innerHTML=rh;
+const cs=document.getElementById(‘objetivosCuentaSelect’).value;
+const ms=objetivosPorCuenta[cs]||{semanal:2000,mensual:8000};
+const pss=trades.filter(t=>t.account===cs&&t.bought>=iS).reduce((s,t)=>{const c=calcularCostes(t);return s+(t.pnl-c.total);},0);
+const pms=trades.filter(t=>t.account===cs&&t.bought>=iM).reduce((s,t)=>{const c=calcularCostes(t);return s+(t.pnl-c.total);},0);
+document.getElementById(‘objetivosStats’).innerHTML=`
+
+<div class="stat-card"><div class="stat-title">\ud83d\udcc5 Meta Semanal: $${ms.semanal}</div><div class="stat-value ${pss>=0?'pos':'neg'}">$${pss.toFixed(2)}</div><div class="progress-bar"><div class="progress-fill ${pss<0?'danger':''}" style="width:${Math.min(Math.abs(pss/ms.semanal)*100,100)}%"></div></div></div>
+<div class="stat-card"><div class="stat-title">\ud83d\uddd3\ufe0f Meta Mensual: $${ms.mensual}</div><div class="stat-value ${pms>=0?'pos':'neg'}">$${pms.toFixed(2)}</div><div class="progress-bar"><div class="progress-fill ${pms<0?'danger':''}" style="width:${Math.min(Math.abs(pms/ms.mensual)*100,100)}%"></div></div></div>`;
+    let al='';
+    if(pss>=ms.semanal)al+=`<div class="alert alert-ok">\ud83c\udf89 Meta semanal alcanzada para ${cs}!</div>`;
+    if(pms>=ms.mensual)al+=`<div class="alert alert-ok">\ud83c\udf89 Meta mensual alcanzada para ${cs}!</div>`;
+    document.getElementById('objetivosAlertas').innerHTML=al;
+}
+
+// ============================================================
+// PSICOLOG\u00cdA TABLES
+// ============================================================
+function updatePsychologyTables() {
+const list=filtroActivo?tradesFiltrados:trades;
+const es={},rs={};
+list.forEach(t=>{
+const c=calcularCostes(t),net=t.pnl-c.total;
+if(t.emoState){if(!es[t.emoState])es[t.emoState]={t:0,p:0};es[t.emoState].t++;es[t.emoState].p+=net;}
+if(t.ruleBroken&&t.ruleBroken!==‘Ninguna’){if(!rs[t.ruleBroken])rs[t.ruleBroken]={t:0,p:0};rs[t.ruleBroken].t++;rs[t.ruleBroken].p+=net;}
+});
+let eh=’<tr><th>Emoci\u00f3n</th><th>Trades</th><th>PnL Neto</th></tr>’;
+for(const e in es)eh+=`<tr><td>${e}</td><td>${es[e].t}</td><td class="${es[e].p>=0?'pos':'neg'}">$${es[e].p.toFixed(2)}</td></tr>`;
+document.getElementById(‘emoTable’).innerHTML=eh||’<tr><td colspan="3" style="text-align:center;color:var(--text3)">Registra emociones</td></tr>’;
+let rh=’<tr><th>Regla</th><th>Trades</th><th>PnL Neto</th></tr>’;
+for(const r in rs)rh+=`<tr><td>${r}</td><td>${rs[r].t}</td><td class="${rs[r].p>=0?'pos':'neg'}">$${rs[r].p.toFixed(2)}</td></tr>`;
+document.getElementById(‘rulesTable’).innerHTML=rh||’<tr><td colspan="3" style="text-align:center;color:var(--text3)">Sin reglas rotas</td></tr>’;
+}
+
+// ============================================================
+// EJECUCI\u00d3N
+// ============================================================
+function updateExecutionMetrics(m) {
+const list=filtroActivo?tradesFiltrados:trades;
+if(!list.length){[‘totalComisiones’,‘ratioGP’,‘maxRachaGanadora’,‘maxRachaPerdedora’].forEach(id=>document.getElementById(id).innerHTML=’\u2014’);return;}
+let tc=0,ts=0,g=[],p=[];
+list.forEach(t=>{const c=calcularCostes(t);tc+=c.comision;ts+=c.swaps;const n=t.pnl-c.total;n>0?g.push(n):n<0&&p.push(Math.abs(n));});
+const avgG=g.length?g.reduce((a,b)=>a+b,0)/g.length:0,avgP=p.length?p.reduce((a,b)=>a+b,0)/p.length:0;
+const rGP=avgP>0?(avgG/avgP).toFixed(2):’\u221e’;
+document.getElementById(‘totalComisiones’).innerHTML=`$${(tc+ts).toFixed(2)}`;
+document.getElementById(‘ratioGP’).innerHTML=rGP;
+document.getElementById(‘maxRachaGanadora’).innerHTML=m.maxRachaGanadora;
+document.getElementById(‘maxRachaPerdedora’).innerHTML=m.maxRachaPerdedora;
+const pnlT=list.reduce((s,t)=>{const c=calcularCostes(t);return s+(t.pnl-c.total);},0);
+const imp=(tc+ts)!==0&&pnlT!==0?((tc+ts)/Math.abs(pnlT)*100).toFixed(1):0;
+document.getElementById(‘executionTable’).innerHTML=`
+
+<tr><th>M\u00e9trica</th><th>Valor</th><th>Interpretaci\u00f3n</th></tr>
+<tr><td>Comisiones</td><td class="neg">$${tc.toFixed(2)}</td><td>Coste directo de operar</td></tr>
+<tr><td>Swaps</td><td class="neg">$${ts.toFixed(2)}</td><td>Coste nocturno (FP Markets)</td></tr>
+<tr><td>Costes totales</td><td class="neg">$${(tc+ts).toFixed(2)}</td><td>${imp}% del PnL bruto</td></tr>
+<tr><td>Ratio G/P promedio</td><td class="${parseFloat(rGP)>=1.5?'pos':parseFloat(rGP)>=1?'warn':'neg'}">${rGP}</td><td>$${avgG.toFixed(2)} gan vs $${avgP.toFixed(2)} perd</td></tr>
+<tr><td>M\u00e1x racha ganadora</td><td class="pos">${m.maxRachaGanadora}</td><td>Trades seguidos ganadores</td></tr>
+<tr><td>M\u00e1x racha perdedora</td><td class="neg">${m.maxRachaPerdedora}</td><td>${m.maxRachaPerdedora>5?'\u26a0\ufe0f Posible revenge trading':m.maxRachaPerdedora>3?'\ud83d\udc4d Controlada':'\u2705 Excelente'}</td></tr>`;
+    document.getElementById('executionContext').innerHTML=`<strong>\u26a1 RESUMEN:</strong> Los costes representan el ${imp}% del PnL bruto. ${imp>20?'\u26a0\ufe0f Alto \u2014 considera reducir frecuencia.':imp>10?'\ud83d\udc4d Moderado.':'\u2705 Bajo \u2014 buena gesti\u00f3n.'} ${m.maxRachaPerdedora>4?'<br>\u26a0\ufe0f Rachas perdedoras largas detectadas. Implementa l\u00edmite diario de p\u00e9rdidas (m\u00e1x 2-3 perdedoras seguidas).':''}`;
+}
+
+// ============================================================
+// CALENDARIO
+// ============================================================
+function cambiarMes(d){calendarFecha.setMonth(calendarFecha.getMonth()+d);actualizarCalendario();}
+function actualizarCalendario(){
+const list=filtroActivo?tradesFiltrados:trades;
+const y=calendarFecha.getFullYear(),mo=calendarFecha.getMonth();
+const mns=[‘Enero’,‘Febrero’,‘Marzo’,‘Abril’,‘Mayo’,‘Junio’,‘Julio’,‘Agosto’,‘Septiembre’,‘Octubre’,‘Noviembre’,‘Diciembre’];
+document.getElementById(‘calendarMesAno’).innerHTML=`${mns[mo]} ${y}`;
+const fd=new Date(y,mo,1).getDay(),dim=new Date(y,mo+1,0).getDate();
+const dn=[‘Dom’,‘Lun’,‘Mar’,‘Mi\u00e9’,‘Jue’,‘Vie’,‘S\u00e1b’];
+let h=dn.map(d=>`<div class="cal-dn">${d}</div>`).join(’’);
+for(let i=0;i<fd;i++)h+=`<div class="cal-day empty"></div>`;
+const dd={},sems={};
+list.forEach(t=>{if(t.bought.getFullYear()===y&&t.bought.getMonth()===mo){const di=t.bought.getDate(),c=calcularCostes(t),net=t.pnl-c.total;if(!dd[di])dd[di]={trades:0,pnl:0};dd[di].trades++;dd[di].pnl+=net;const sn=Math.floor((di-1+fd)/7);if(!sems[sn])sems[sn]={pnl:0,trades:0};sems[sn].pnl+=net;sems[sn].trades++;}});
+for(let d=1;d<=dim;d++){const da=dd[d],has=da!==undefined,pnl=has?da.pnl:0;
+h+=`<div class="cal-day ${has?(pnl>=0?'pos-day':'neg-day'):'empty'}"><div class="cal-num">${d}</div>${has?`<div class="cal-pnl ${pnl>=0?'pos':'neg'}">$${pnl.toFixed(0)}</div><div class="cal-trades">${da.trades}t</div>`:''}`;
+const dw=(fd+d-1)%7;if(dw===6||dw===0){const sn=Math.floor((d-1+fd)/7),sd=sems[sn];if(sd&&sd.trades)h+=`<div class="cal-week-sum ${sd.pnl>=0?'pos':'neg'}">S${sn+1}: $${sd.pnl.toFixed(0)}</div>`;}
+h+=`</div>`;}
+document.getElementById(‘calendarGrid’).innerHTML=h;
+}
+
+// ============================================================
+// CHARTS
+// ============================================================
+function updateEquityChart(si,ec){
+const list=filtroActivo?tradesFiltrados:trades;
+const labels=list.map(t=>t.bought.toLocaleDateString());
+const eq=ec.map(e=>e+si);
+const ctx=document.getElementById(‘equityChart’).getContext(‘2d’);
+if(window._eqChart)window._eqChart.destroy();
+window._eqChart=new Chart(ctx,{type:‘line’,data:{labels,datasets:[{label:‘Equity’,data:eq,borderColor:’#00ff9d’,backgroundColor:‘rgba(0,255,157,0.08)’,borderWidth:2,fill:true,tension:0.3,pointRadius:0,pointHoverRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:’#8b949e’,font:{family:‘IBM Plex Mono’,size:11}}}},scales:{x:{ticks:{color:’#6e7681’,font:{size:9}},grid:{color:’#21262d’}},y:{ticks:{color:’#6e7681’},grid:{color:’#21262d’}}}}});
+}
+function updateDrawdownChart(dc){
+const list=filtroActivo?tradesFiltrados:trades;
+const labels=list.map(t=>t.bought.toLocaleDateString());
+const ctx=document.getElementById(‘drawdownChart’).getContext(‘2d’);
+if(window._ddChart)window._ddChart.destroy();
+window._ddChart=new Chart(ctx,{type:‘line’,data:{labels,datasets:[{label:‘Drawdown’,data:dc,borderColor:’#f85149’,backgroundColor:‘rgba(248,81,73,0.08)’,borderWidth:2,fill:true,tension:0.3,pointRadius:0,pointHoverRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:’#8b949e’,font:{family:‘IBM Plex Mono’,size:11}}}},scales:{x:{ticks:{color:’#6e7681’,font:{size:9}},grid:{color:’#21262d’}},y:{ticks:{color:’#6e7681’},grid:{color:’#21262d’}}}}});
+}
+
+// ============================================================
+// REFLEXI\u00d3N / MENTOR\u00cdA
+// ============================================================
+function cambiarMesReflexion(d){reflexionFecha.setMonth(reflexionFecha.getMonth()+d);actualizarCalendarioReflexion();}
+function actualizarCalendarioReflexion(){
+const y=reflexionFecha.getFullYear(),mo=reflexionFecha.getMonth();
+const mns=[‘Enero’,‘Febrero’,‘Marzo’,‘Abril’,‘Mayo’,‘Junio’,‘Julio’,‘Agosto’,‘Septiembre’,‘Octubre’,‘Noviembre’,‘Diciembre’];
+document.getElementById(‘reflexionMesActual’).innerHTML=`${mns[mo]} ${y}`;
+const fd=new Date(y,mo,1).getDay(),dim=new Date(y,mo+1,0).getDate();
+const dn=[‘Dom’,‘Lun’,‘Mar’,‘Mi\u00e9’,‘Jue’,‘Vie’,‘S\u00e1b’];
+let h=dn.map(d=>`<div class="cal-dn">${d}</div>`).join(’’);
+for(let i=0;i<fd;i++)h+=`<div class="ref-day empty-day"></div>`;
+for(let d=1;d<=dim;d++){
+const fk=`${y}-${String(mo+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+const ref=reflexiones[fk]||{};
+const td=trades.filter(t=>t.bought.getFullYear()===y&&t.bought.getMonth()===mo&&t.bought.getDate()===d);
+const pnld=td.reduce((s,t)=>{const c=calcularCostes(t);return s+(t.pnl-c.total);},0);
+let cls=‘ref-day’; if(ref.user)cls+=’ has-user’; if(ref.mentor)cls+=’ has-mentor’;
+h+=`<div class="${cls}" onclick="abrirModalReflexion('${fk}')">
+
+<div class="ref-day-num">${d}</div>
+<div class="ref-day-stats">${td.length} trades \u00b7 <span class="${pnld>=0?'pos':'neg'}">$${pnld.toFixed(0)}</span></div>
+${ref.user?`<div class="ref-preview">"${ref.user.substring(0,18)}${ref.user.length>18?'\u2026':''}"</div>`:''}
+</div>`;
+    }
+    document.getElementById('reflexionCalendar').innerHTML=h;
+}
+
+function abrirModalReflexion(fk){
+fechaModalActual=fk;
+const ref=reflexiones[fk]||{user:’’,mentor:’’,historial:[]};
+const [y,mo,d]=fk.split(’-’);
+const mns=[‘Enero’,‘Febrero’,‘Marzo’,‘Abril’,‘Mayo’,‘Junio’,‘Julio’,‘Agosto’,‘Septiembre’,‘Octubre’,‘Noviembre’,‘Diciembre’];
+document.getElementById(‘modalFecha’).innerHTML=`${d} de ${mns[parseInt(mo)-1]} de ${y}`;
+document.getElementById(‘reflexionUserText’).value=ref.user||’’;
+document.getElementById(‘mentorResponse’).innerHTML=ref.mentor?ref.mentor.replace(/\n/g,’<br>’):’<span style="color:var(--text3);font-style:italic;">Escribe tu reflexi\u00f3n y pulsa “Mentor IA”</span>’;
+const fecha=new Date(y,parseInt(mo)-1,d);
+const td=trades.filter(t=>t.bought.getFullYear()===fecha.getFullYear()&&t.bought.getMonth()===fecha.getMonth()&&t.bought.getDate()===fecha.getDate());
+const pnld=td.reduce((s,t)=>{const c=calcularCostes(t);return s+(t.pnl-c.total);},0);
+const wins=td.filter(t=>{const c=calcularCostes(t);return(t.pnl-c.total)>0;}).length;
+const hs={};td.forEach(t=>{if(!hs[t.hour])hs[t.hour]={p:0,c:0};const c=calcularCostes(t);hs[t.hour].p+=(t.pnl-c.total);hs[t.hour].c++;});
+let mh=’-’,mv=-Infinity;for(const h in hs){const a=hs[h].p/hs[h].c;if(a>mv){mv=a;mh=h+’:00’;}}
+document.getElementById(‘modalTrades’).innerHTML=td.length;
+const pnlEl=document.getElementById(‘modalPnl’);pnlEl.innerHTML=`$${pnld.toFixed(2)}`;pnlEl.className=`ds-val ${pnld>=0?'pos':'neg'}`;
+document.getElementById(‘modalWinrate’).innerHTML=td.length?(wins/td.length*100).toFixed(1)+’%’:‘0%’;
+document.getElementById(‘modalMejorHora’).innerHTML=mh;
+const hist=document.getElementById(‘reflexionHistorial’);
+if(ref.historial&&ref.historial.length){
+hist.innerHTML=ref.historial.map(item=>`<div style="margin-bottom:10px;padding:8px;background:var(--bg2);border-radius:6px;"><div style="color:var(--text3);font-size:10px;">${new Date(item.timestamp).toLocaleString()}</div><div style="margin-top:4px;font-size:12px;"><span style="color:var(--accent)">T\u00fa:</span> ${item.user}</div>${item.mentor?`<div style="margin-top:2px;font-size:12px;"><span style="color:var(--blue)">Mentor:</span> ${item.mentor}</div>`:''}</div>`).join(’’);
+} else hist.innerHTML=’<span style="color:var(--text3);font-size:12px;">Sin historial</span>’;
+document.getElementById(‘reflexionModal’).classList.add(‘active’);
+}
+
+function cerrarModalReflexion(){document.getElementById(‘reflexionModal’).classList.remove(‘active’);}
+
+async function guardarReflexion(){
+const tx=document.getElementById(‘reflexionUserText’).value.trim();
+if(!tx){toast(‘Escribe algo primero’,‘warn’);return;}
+if(!reflexiones[fechaModalActual])reflexiones[fechaModalActual]={user:’’,mentor:’’,historial:[]};
+if(reflexiones[fechaModalActual].user){
+if(!reflexiones[fechaModalActual].historial)reflexiones[fechaModalActual].historial=[];
+reflexiones[fechaModalActual].historial.push({timestamp:new Date().toISOString(),user:reflexiones[fechaModalActual].user,mentor:reflexiones[fechaModalActual].mentor||’’});
+}
+reflexiones[fechaModalActual].user=tx;reflexiones[fechaModalActual].mentor=’’;
+saveAllData();actualizarCalendarioReflexion();toast(’\u2705 Reflexi\u00f3n guardada’);
+}
+
+function analizarConMentor(){
+const tx=document.getElementById(‘reflexionUserText’).value.trim();
+if(!tx){toast(‘Escribe tu reflexi\u00f3n primero’,‘warn’);return;}
+const md=document.getElementById(‘mentorResponse’);
+md.innerHTML=’<span style="color:var(--text3);font-style:italic;">\ud83e\udd14 Analizando…</span>’;
+const [y,mo,d]=fechaModalActual.split(’-’);
+const fecha=new Date(y,parseInt(mo)-1,d);
+const td=trades.filter(t=>t.bought.getFullYear()===fecha.getFullYear()&&t.bought.getMonth()===fecha.getMonth()&&t.bought.getDate()===fecha.getDate());
+const pnld=td.reduce((s,t)=>{const c=calcularCostes(t);return s+(t.pnl-c.total);},0);
+const wins=td.filter(t=>{const c=calcularCostes(t);return(t.pnl-c.total)>0;}).length;
+const wr=td.length?(wins/td.length*100).toFixed(1):0;
+const txL=tx.toLowerCase();
+setTimeout(()=>{
+let a=’’;
+if(txL.includes(‘miedo’)||txL.includes(‘nervi’)||txL.includes(‘ansied’))a+=’\ud83d\ude30 Detecto se\u00f1ales de ansiedad. El miedo lleva a salidas prematuras. Conf\u00eda m\u00e1s en tu an\u00e1lisis y usa stops que te permitan dar espacio al trade.\n\n’;
+if(txL.includes(‘rabia’)||txL.includes(‘enfad’)||txL.includes(‘venganza’))a+=’\u26a0\ufe0f Se\u00f1ales de revenge trading. Cuando est\u00e9s emocionalmente alterado, cierra la plataforma. Vuelve ma\u00f1ana con la mente fr\u00eda.\n\n’;
+if(txL.includes(‘confianza’)||txL.includes(‘segur’))a+=’\u2705 Buen estado mental. Aprovecha este estado para operar con convicci\u00f3n \u2014 sin caer en soberbia. Sigue el plan.\n\n’;
+if(txL.includes(‘sobreoper’)||txL.includes(‘muchos trade’)||txL.includes(‘demasiados’))a+=’\ud83d\udcca Parece que sobreoperaste. Calidad > cantidad. Define un m\u00e1ximo de 3-5 setups por d\u00eda y s\u00e9 selectivo.\n\n’;
+if(txL.includes(‘stop’)||txL.includes(‘sin sl’))a+=’\ud83d\udeab Operar sin stop es uno de los errores m\u00e1s costosos. Un solo trade sin stop puede acabar con semanas de trabajo. Obligatorio siempre.\n\n’;
+if(td.length>0){a+=`\ud83d\udcc8 Hoy hiciste ${td.length} trades con PnL de $${pnld.toFixed(2)} (${wr}% winrate). `;a+=pnld>0?‘Buen resultado. Identifica qu\u00e9 hiciste bien y rep\u00edtelo.\n\n’:‘Resultado negativo. \u00bfPodr\u00edas haber evitado alg\u00fan trade? \u00bfRespetaste tu plan?\n\n’;}
+a+=’\ud83d\udca1 RECOMENDACIONES:\n\u2022 Escribe en este diario cada d\u00eda que operes\n\u2022 Busca patrones en tus emociones vs resultados\n\u2022 Si hay una emoci\u00f3n negativa recurrente, trab\u00e1jala con un coach o psic\u00f3logo de trading’;
+if(!a.trim())a=‘Gracias por compartir. Para darte an\u00e1lisis m\u00e1s profundo, describe espec\u00edficamente: \u00bfqu\u00e9 sentiste antes de entrar? \u00bfSeguiste tu plan? \u00bfQu\u00e9 har\u00edas diferente?’;
+md.innerHTML=a.replace(/\n/g,’<br>’);
+if(!reflexiones[fechaModalActual])reflexiones[fechaModalActual]={user:’’,mentor:’’,historial:[]};
+reflexiones[fechaModalActual].mentor=a;
+saveAllData();
+},1200);
+}
+
+// ============================================================
+// INIT
+// ============================================================
+async function iniciar(){
+// Mostrar spinner mientras carga
+document.getElementById(‘statsDashboard’).innerHTML=’<div class="stat-card"><div class="stat-title">Cargando…</div><div class="stat-value">●●●</div></div>’;
+
+```
+await loadFromStorage(); // Carga local + Supabase
+loadBalances();
+cargarObjetivosCuenta();
+actualizarListaSimbolos();
+if(trades.length){
+    updateDashboard();updateSetupTable();updatePsychologyTables();
+    const m=calculateMetrics();if(m)updateExecutionMetrics(m);
+    updateTemporalTables();actualizarCalendario();actualizarCalendarioReflexion();actualizarTablaManual();
+} else {
+    document.getElementById('statsDashboard').innerHTML='<div class="stat-card"><div class="stat-title">Sin datos</div><div class="stat-value">&#8212;</div><div class="stat-sub">Importa un CSV o a&#241;ade operaciones manualmente</div></div>';
+    actualizarCalendarioReflexion();
+}
+// Heatmap labels
+let lh='';for(let i=0;i<24;i++)lh+='<div class="heatmap-label">'+i+'</div>';
+document.getElementById('heatmapLabels').innerHTML=lh;
+```
+
+}
+
+iniciar();
+
+document.addEventListener(‘visibilitychange’,function(){ if(!document.hidden) saveAllData(); });
+</script>
+
+</body>
+</html>
